@@ -1,0 +1,9 @@
+{
+  "name": "crazy-sushi-core",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "build": "tsc",
+    "demo": "tsc && node dist/demo.js"
+  }
+}

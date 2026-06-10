@@ -1,0 +1,185 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Crazy Sushi Prototype</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <main class="game-shell">
+      <section class="hud">
+        <div class="brand">
+          <span class="mark">CS</span>
+          <div>
+            <h1>Crazy Sushi</h1>
+            <p id="phaseText">准备启动</p>
+          </div>
+        </div>
+        <div class="stats">
+          <div tabindex="0" data-tooltip="当前天数。每天营业成功后可以进入下一天，目标金币和鱼骨压力会逐步提高。">
+            <span>天数</span><strong id="dayText">0</strong>
+          </div>
+          <div tabindex="0" data-tooltip="当前持有金币。用于购买商店食材和刷新商店，营业投喂会获得金币。">
+            <span>金币</span><strong id="goldText">0</strong>
+          </div>
+          <div tabindex="0" data-tooltip="当天目标金币。营业结束时，当前总金币达到这个数值且过载未满即可过关。">
+            <span>目标</span><strong id="targetText">20</strong>
+          </div>
+          <div tabindex="0" data-tooltip="过载值。营业中会受物品重量、鱼骨和盘面压力影响上升；吃到食物、组合或粉碎鱼骨可以降低。达到 100% 会失败。">
+            <span>过载</span><strong id="overloadText">0%</strong>
+          </div>
+          <div tabindex="0" data-tooltip="大胃王饱食度。吃到食物会上升，吃到鱼骨会下降，并影响表情反馈。">
+            <span>饱食度</span><strong id="saturationText">50%</strong>
+          </div>
+        </div>
+      </section>
+
+      <section class="stage-wrap">
+        <div id="phaseBanner" class="phase-banner phase-prep">
+          <div id="phaseBannerTitle" class="phase-banner-title">营业前准备</div>
+          <div id="phaseBannerSub" class="phase-banner-sub">购买、拖拽、交换餐盘，排好 Combo 顺序</div>
+        </div>
+        <aside class="combo-guide" aria-label="Combo 排序提示">
+          <div class="combo-title">配方</div>
+          <div
+            class="combo-line"
+            tabindex="0"
+            data-tooltip-title="三文鱼寿司"
+            data-tooltip-score="12G"
+            data-tooltip-overload="投喂时过载 -5"
+            data-tooltip-desc="醋饭 + 鱼片。Combo 食物，收益稳定。"
+          >
+            <img src="../newasset/sushi_rice_32ca8538-70c7-46c0-9fc1-68d7e024a1a0.webp" alt="醋饭" />
+            <span>→</span>
+            <img src="../newasset/salmon_slice_238af822-be4a-44fc-a8ee-4cf5942b6f63.webp" alt="鱼片" />
+            <span>=</span>
+            <img src="../newasset/salmon_sushi_984516f2-205e-4a0f-a0a8-c964119c2a9a.webp" alt="三文鱼寿司" />
+          </div>
+          <div
+            class="combo-line"
+            tabindex="0"
+            data-tooltip-title="饭团"
+            data-tooltip-score="9G"
+            data-tooltip-overload="投喂时过载 -5"
+            data-tooltip-desc="海苔 + 醋饭。可继续与鱼片合成鱼片寿司卷。"
+          >
+            <img src="../assets/generated/nori_generated.png" alt="海苔" />
+            <span>→</span>
+            <img src="../newasset/sushi_rice_32ca8538-70c7-46c0-9fc1-68d7e024a1a0.webp" alt="米饭" />
+            <span>=</span>
+            <img src="../assets/generated/onigiri.png" alt="饭团" />
+          </div>
+          <div
+            class="combo-line combo-triple-line"
+            tabindex="0"
+            data-tooltip-title="鱼片寿司卷"
+            data-tooltip-score="21G"
+            data-tooltip-overload="投喂时过载 -7"
+            data-tooltip-desc="海苔 + 醋饭 + 鱼片。Premium Combo，高价值、低重量。"
+          >
+            <img src="../assets/generated/nori_generated.png" alt="海苔" />
+            <span>→</span>
+            <img src="../newasset/sushi_rice_32ca8538-70c7-46c0-9fc1-68d7e024a1a0.webp" alt="米饭" />
+            <span>→</span>
+            <img src="../newasset/salmon_slice_238af822-be4a-44fc-a8ee-4cf5942b6f63.webp" alt="鱼片" />
+            <span>=</span>
+            <img src="../assets/generated/salmon_roll.png" alt="鱼片寿司卷" />
+          </div>
+          <div
+            class="combo-line combo-clean-line"
+            tabindex="0"
+            data-tooltip-title="粉碎鱼刺"
+            data-tooltip-score="+2G"
+            data-tooltip-overload="触发时过载 -10"
+            data-tooltip-desc="厨余粉碎机 + 相邻鱼刺。持有粉碎机升级时奖励提高到 +4G。"
+          >
+            <img src="../newasset/trash_crusher_01b0bd02-5a22-4a82-b85a-c219d7897254.webp" alt="厨余粉碎机" />
+            <span>→</span>
+            <img src="../newasset/fish_bone_577ac624-8cea-4a59-96d5-b79c0ca70b74.webp" alt="鱼刺" />
+            <span>=</span>
+            <img src="../newasset/elimination_smoke_6b788849-65b4-44a5-927f-f48002a7c763.webp" alt="粉碎" />
+            <span class="combo-caption">清理</span>
+          </div>
+          <div class="relic-guide">
+            <div class="combo-title">持有道具</div>
+            <div id="relicList" class="relic-list"></div>
+          </div>
+        </aside>
+        <div class="stage">
+          <img class="stage-art" src="../newasset/background_3d9ef6af-ba7c-43ec-8b3a-a8de3ab01e11.webp" alt="" />
+          <img
+            id="conveyorBase"
+            class="conveyor-base"
+            src="../newasset/conveyor_belt_base_b135c42a-6363-4e31-bd8c-05e516e55d3f.webp"
+            alt=""
+          />
+          <img
+            class="rotation-arrow"
+            src="../newasset/rotation_arrow_9b8adceb-73ad-4819-b43a-b0af14422232.webp"
+            alt=""
+          />
+          <div id="belt" class="belt" aria-label="圆形传送带"></div>
+          <div id="effectLayer" class="effect-layer" aria-hidden="true"></div>
+          <div id="resultOverlay" class="result-overlay hidden">
+            <div id="resultCard" class="result-card">
+              <div id="resultTitle" class="result-title">营业结束</div>
+              <div id="resultDetail" class="result-detail"></div>
+              <div id="rewardChoices" class="reward-choices"></div>
+              <button id="skipRewardBtn" class="skip-reward-button">跳过奖励</button>
+              <button id="resultNextDayBtn" class="result-next-day-button">新一天</button>
+              <button id="retryBtn" class="retry-button">重新开始</button>
+            </div>
+          </div>
+        </div>
+          <div class="consumer">
+            <img
+              class="consumer-base"
+              src="../newasset/slot_customer_zone_2db68a34-507b-4478-8caf-138a52a84591.webp"
+              alt=""
+            />
+            <div class="consumer-ring"></div>
+            <img id="consumerPortrait" class="consumer-portrait" src="../assets/generated/consumer-happy.png" alt="大胃王" />
+            <div class="consumer-face" id="consumerFace">^_^</div>
+            <div class="consumer-label">大胃王</div>
+          </div>
+        </div>
+      </section>
+
+      <section class="controls">
+        <div class="panel hint-panel">
+          <div id="actionHint" class="action-hint">点击商店物品购买，然后拖到空餐盘。</div>
+        </div>
+
+        <div id="shopPanel" class="panel">
+          <div class="panel-head">
+            <h2>商店</h2>
+            <button id="refreshBtn">刷新 1 金币</button>
+          </div>
+          <div id="shopList" class="item-row"></div>
+        </div>
+
+        <div class="panel">
+          <div class="panel-head">
+            <h2>备料区</h2>
+            <button id="startDayBtn">新一天</button>
+          </div>
+          <div id="inventoryList" class="item-row"></div>
+        </div>
+
+        <div class="panel action-panel">
+          <button id="confirmBtn" class="primary">确认摆盘</button>
+          <button id="clearSelectBtn">取消选择</button>
+        </div>
+      </section>
+
+      <section class="log-panel">
+        <h2>营业日志</h2>
+        <div id="log" class="log"></div>
+      </section>
+      <div id="itemTooltip" class="item-tooltip hidden"></div>
+    </main>
+
+    <script src="./game.js"></script>
+  </body>
+</html>
