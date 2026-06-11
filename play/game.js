@@ -806,25 +806,35 @@
     }
 
     const filledSlots = state.slots.filter(Boolean).length;
-    if (filledSlots > 0) {
+    const preparedItemCount = filledSlots + state.inventory.length;
+
+    if (preparedItemCount < 2) {
       return {
-        selector: "#confirmBtn",
-        title: "确认摆盘",
-        text: "餐盘上已有物品。你可以继续调整顺序，或点击确认摆盘开始营业。",
+        selector: "#shopPanel",
+        title: "先买两个食材",
+        text: `至少购买 2 个物品再摆盘。当前已准备 ${preparedItemCount}/2 个，点击商店里的食材购买。`,
       };
     }
 
-    if (state.inventory.length > 0) {
+    if (filledSlots < 2) {
       return {
         selector: "#inventoryPanel",
-        title: "拖到餐盘",
-        text: "把备料区里的物品直接拖到左侧空餐盘上松手。相邻食材会在营业前自动合成 Combo。",
+        title: "拖两个到餐盘",
+        text: `把备料区物品拖到左侧空餐盘上松手。至少放上 2 个物品后再确认摆盘，当前 ${filledSlots}/2 个。`,
+      };
+    }
+
+    if (filledSlots >= 2) {
+      return {
+        selector: "#confirmBtn",
+        title: "确认摆盘",
+        text: "餐盘上已经有 2 个以上物品。你可以继续调整顺序，或点击确认摆盘开始营业。",
       };
     }
 
     return {
       selector: "#shopPanel",
-      title: "先买食材",
+      title: "先买两个食材",
       text: "点击商店里的食材购买。购买后会进入备料区，再拖到餐盘上。",
     };
   }
@@ -867,11 +877,11 @@
     const targetTop = (rect.top - shellRect.top) / scale;
     const targetHeight = rect.height / scale;
     const spaceRight = DESIGN_WIDTH - targetRight;
-    const left =
-      spaceRight >= coachWidth + gap
-        ? targetRight + gap
-        : Math.max(12, targetLeft - coachWidth - gap);
+    const placeRight = spaceRight >= coachWidth + gap;
+    const left = placeRight ? targetRight + gap : Math.max(12, targetLeft - coachWidth - gap);
     const top = Math.max(12, Math.min(DESIGN_HEIGHT - coachHeight - 12, targetTop + targetHeight * 0.2));
+    coach.classList.toggle("arrow-left", placeRight);
+    coach.classList.toggle("arrow-right", !placeRight);
     coach.style.left = `${left}px`;
     coach.style.top = `${top}px`;
   }
@@ -1395,9 +1405,9 @@
 
   function itemScoreText(item) {
     const crushGold = 2 + relicCount("crusher_upgrade") * 2 + relicCount("bone_gold") * 2;
-    if (isTrash(item)) return `投喂 0G；粉碎 +${crushGold}G`;
-    if (isCrusher(item)) return `范围 ${1 + relicCount("crusher_range")}；粉碎鱼骨 +${crushGold}G`;
-    return `投喂 +${item.score}G`;
+    if (isTrash(item)) return `投喂 0 金币；粉碎 +${crushGold} 金币`;
+    if (isCrusher(item)) return `范围 ${1 + relicCount("crusher_range")}；粉碎鱼骨 +${crushGold} 金币`;
+    return `投喂 +${item.score} 金币`;
   }
 
   function itemOverloadText(item) {
@@ -1809,6 +1819,8 @@
     state.totalTicks = goal.ticks;
     state.goldAtBusinessStart = state.gold;
     state.dailyComboCount = 0;
+    state.selectedInventory = null;
+    state.selectedSlot = null;
     playSound("start");
     setHint(`营业开始：传送带自动转动，等待 ${goal.ticks} 轮结算。`);
     log(`开始营业：自动运行 ${goal.ticks} 轮。`, "good");
@@ -1826,14 +1838,20 @@
       rotateBelt();
 
       if (tick >= goal.ticks || state.overload >= MAX_OVERLOAD) {
-        state.runningTimer = null;
-        state.phase = "Finished";
-        printSummary();
         render();
+        pulseBelt();
+        state.runningTimer = window.setTimeout(() => {
+          state.runningTimer = null;
+          if (state.phase !== "Running") return;
+          state.phase = "Finished";
+          printSummary();
+          render();
+        }, 650);
         return;
       }
 
       render();
+      pulseBelt();
       state.runningTimer = window.setTimeout(runNextTick, 650);
     };
 
@@ -1844,7 +1862,6 @@
   function rotateBelt() {
     hideItemTooltip();
     playSound("tick");
-    pulseBelt();
     const last = state.slots[SLOT_COUNT - 1];
     const lastPlateMultiplier = state.plateMultipliers[SLOT_COUNT - 1];
     for (let i = SLOT_COUNT - 1; i > 0; i -= 1) {
