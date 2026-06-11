@@ -16,7 +16,7 @@
             <p id="phaseText">准备启动</p>
           </div>
         </div>
-        <div class="stats">
+        <div class="stats core-stats">
           <div tabindex="0" data-tooltip="当前天数。每天营业成功后可以进入下一天，目标金币和鱼骨压力会逐步提高。">
             <span>天数</span><strong id="dayText">0</strong>
           </div>
@@ -24,8 +24,10 @@
             <span>金币</span><strong id="goldText">0</strong>
           </div>
           <div tabindex="0" data-tooltip="当天目标金币。营业结束时，当前总金币达到这个数值且过载未满即可过关。">
-            <span>目标</span><strong id="targetText">20</strong>
+            <span>目标金币</span><strong id="targetText">20</strong>
           </div>
+        </div>
+        <div class="stats side-stats">
           <div tabindex="0" data-tooltip="过载值。营业中会受物品重量、鱼骨和盘面压力影响上升；吃到食物、组合或粉碎鱼骨可以降低。达到 100% 会失败。">
             <span>过载</span><strong id="overloadText">0%</strong>
           </div>
@@ -106,7 +108,7 @@
             <div id="relicList" class="relic-list"></div>
           </div>
         </aside>
-        <div class="stage">
+        <div id="stage" class="stage">
           <img class="stage-art" src="../newasset/background_3d9ef6af-ba7c-43ec-8b3a-a8de3ab01e11.webp" alt="" />
           <img
             id="conveyorBase"
@@ -169,7 +171,6 @@
 
         <div class="panel action-panel">
           <button id="confirmBtn" class="primary">确认摆盘</button>
-          <button id="clearSelectBtn">取消选择</button>
         </div>
       </section>
 

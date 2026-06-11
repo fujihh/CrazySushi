@@ -1,17 +1,20 @@
 (function () {
   const SLOT_COUNT = 12;
+  const SLOT_CENTER_X = 50;
+  const SLOT_CENTER_Y = 51;
+  const SLOT_RING_RADIUS = 31.5;
   const MAX_OVERLOAD = 100;
   const OVERLOAD_BALANCE = {
-    basePressure: 0.75,
-    weightPressure: 0.38,
-    occupiedSlotPressure: 0.15,
-    trashPressure: 0.9,
+    basePressure: 0.9,
+    weightPressure: 0.44,
+    occupiedSlotPressure: 0.18,
+    trashPressure: 1.05,
     emptySlotRelief: 0.08,
-    noTrashRelief: 0.2,
-    foodRelief: 2.5,
-    comboRelief: 5,
-    premiumRelief: 7,
-    crusherRelief: 10,
+    noTrashRelief: 0.15,
+    foodRelief: 2.2,
+    comboRelief: 4.5,
+    premiumRelief: 6.5,
+    crusherRelief: 9,
   };
   const REFRESH_COSTS = [1, 2, 3, 6, 10, 20, 40];
   const ASSET = "../newasset/";
@@ -26,6 +29,7 @@
     onigiri: "../assets/generated/onigiri.png",
     salmonRoll: "../assets/generated/salmon_roll.png",
     plate: `${ASSET}empty_plate_b4bc111e-7407-489e-b26f-fc4d57964175.webp`,
+    goldenPlate: "../assets/generated/golden_plate.png",
     smoke: `${ASSET}elimination_smoke_6b788849-65b4-44a5-927f-f48002a7c763.webp`,
     merge: `${ASSET}merge_effect_0cd01ceb-9705-483e-b0ee-5d79be781176.webp`,
     coin: `${ASSET}gold_coin_f75a03fe-f4b0-49e5-ad8c-a309fe82376e.webp`,
@@ -109,6 +113,14 @@
       description: "一次性道具。准备阶段使用，清除盘面所有鱼骨。",
     },
     {
+      id: "golden_plate_upgrade",
+      name: "金色餐盘券",
+      rarity: "Rare",
+      type: "Active",
+      icon: SPRITES.goldenPlate,
+      description: "一次性道具。准备阶段点击 1 个餐盘升级为金色餐盘，该餐盘上的食物投喂金币翻倍。",
+    },
+    {
       id: "premium_nori",
       name: "高级海苔",
       rarity: "Common",
@@ -123,6 +135,30 @@
       type: "Passive",
       icon: `${RELIC_ASSET}compressed_sushi.png`,
       description: "Combo 产物重量降低，传送带压力更小。",
+    },
+    {
+      id: "combo_chain",
+      name: "连锁奖励",
+      rarity: "Rare",
+      type: "Passive",
+      icon: `${RELIC_ASSET}combo_chain.png`,
+      description: "同一天内每次合成 Combo，后续 Combo 分数提高。可重复叠加。",
+    },
+    {
+      id: "double_plating",
+      name: "双层摆盘",
+      rarity: "Rare",
+      type: "Passive",
+      icon: `${RELIC_ASSET}double_plating.png`,
+      description: "三件食材合成的高级 Combo 额外提高分数。可重复叠加。",
+    },
+    {
+      id: "artisan_hand",
+      name: "匠人手法",
+      rarity: "Rare",
+      type: "Passive",
+      icon: `${RELIC_ASSET}artisan_hand.png`,
+      description: "合成腾出空格时，按腾出数量额外降低过载。可重复叠加。",
     },
     {
       id: "happy_sticker",
@@ -149,6 +185,54 @@
       description: "粉碎机清理鱼骨时获得更多金币。",
     },
     {
+      id: "crusher_range",
+      name: "扩展粉碎器",
+      rarity: "Rare",
+      type: "Passive",
+      icon: `${RELIC_ASSET}crusher_range.png`,
+      description: "厨余粉碎机的鱼骨清理范围 +1。可重复叠加。",
+    },
+    {
+      id: "free_bone",
+      name: "免费鱼骨",
+      rarity: "Common",
+      type: "Passive",
+      icon: `${RELIC_ASSET}free_bone.png`,
+      description: "商店里的鱼骨购买价格变为 0。",
+    },
+    {
+      id: "bone_growth",
+      name: "鱼骨增殖",
+      rarity: "Common",
+      type: "Passive",
+      icon: `${RELIC_ASSET}bone_growth.png`,
+      description: "每天营业前准备额外生成 1 个鱼骨，并提高商店鱼骨出现概率。可重复叠加。",
+    },
+    {
+      id: "bone_gold",
+      name: "骨粉金币",
+      rarity: "Rare",
+      type: "Passive",
+      icon: `${RELIC_ASSET}bone_gold.png`,
+      description: "每粉碎 1 个鱼骨，额外获得 2 金币。可重复叠加。",
+    },
+    {
+      id: "bone_relief",
+      name: "骨粉降压",
+      rarity: "Rare",
+      type: "Passive",
+      icon: `${RELIC_ASSET}bone_relief.png`,
+      description: "每粉碎 1 个鱼骨，额外降低 4 过载。可重复叠加。",
+    },
+    {
+      id: "bone_recycle",
+      name: "鱼骨回收",
+      rarity: "Rare",
+      type: "Passive",
+      icon: `${RELIC_ASSET}bone_recycle.png`,
+      description: "鱼骨被粉碎后，有概率回到备料区。重复选择会提高概率。",
+    },
+    {
       id: "free_refresh",
       name: "免费刷新券",
       rarity: "Common",
@@ -156,16 +240,24 @@
       icon: `${RELIC_ASSET}free_refresh.png`,
       description: "每天首次手动刷新商店免费。",
     },
+    {
+      id: "piggy_bank",
+      name: "存钱罐",
+      rarity: "Rare",
+      type: "Passive",
+      icon: `${RELIC_ASSET}piggy_bank.png`,
+      description: "每次营业成功后存入 2 金币；若因金币不足失败，自动打碎并返还存款 5 倍。",
+    },
   ];
 
   // Daily balance table. targetGold is cumulative current Gold, not daily revenue.
   const MIN_DAY_TICKS = SLOT_COUNT;
   const DAY_CONFIGS = {
-    1: { ticks: 12, targetGold: 22, startingTrash: 0 },
-    2: { ticks: 12, targetGold: 34, startingTrash: 0 },
-    3: { ticks: 12, targetGold: 50, startingTrash: 1 },
-    4: { ticks: 12, targetGold: 70, startingTrash: 1 },
-    5: { ticks: 12, targetGold: 95, startingTrash: 2 },
+    1: { ticks: 12, targetGold: 24, startingTrash: 0 },
+    2: { ticks: 12, targetGold: 40, startingTrash: 0 },
+    3: { ticks: 12, targetGold: 60, startingTrash: 1 },
+    4: { ticks: 12, targetGold: 84, startingTrash: 2 },
+    5: { ticks: 12, targetGold: 112, startingTrash: 3 },
   };
 
   const state = {
@@ -174,14 +266,19 @@
     currentTick: 0,
     totalTicks: 0,
     targetGold: DAY_CONFIGS[1].targetGold,
-    gold: 16,
+    gold: 22,
     goldAtBusinessStart: 0,
+    piggyBankGold: 0,
+    lastPiggyRescue: 0,
+    dailyComboCount: 0,
     overload: 0,
     saturation: 50,
     penaltyTicks: 0,
     refreshCost: 1,
     refreshCount: 0,
+    freeRefreshUsed: 0,
     slots: Array(SLOT_COUNT).fill(null),
+    plateMultipliers: Array(SLOT_COUNT).fill(1),
     inventory: [],
     shop: [],
     playerRelics: [],
@@ -192,6 +289,7 @@
     selectedSlot: null,
     activeRelicId: null,
     dragState: null,
+    suppressShopClick: false,
     suppressInventoryClick: false,
     suppressSlotClick: false,
     runningTimer: null,
@@ -203,6 +301,7 @@
 
   const els = {
     belt: document.getElementById("belt"),
+    stage: document.getElementById("stage"),
     dayText: document.getElementById("dayText"),
     goldText: document.getElementById("goldText"),
     targetText: document.getElementById("targetText"),
@@ -220,7 +319,6 @@
     refreshBtn: document.getElementById("refreshBtn"),
     startDayBtn: document.getElementById("startDayBtn"),
     confirmBtn: document.getElementById("confirmBtn"),
-    clearSelectBtn: document.getElementById("clearSelectBtn"),
     actionHint: document.getElementById("actionHint"),
     log: document.getElementById("log"),
     conveyorBase: document.getElementById("conveyorBase"),
@@ -266,6 +364,14 @@
     return [wrapSlotIndex(index - 1), wrapSlotIndex(index + 1)];
   }
 
+  function rangedAdjacentSlotIndices(index, range) {
+    const indices = [];
+    for (let distance = 1; distance <= range; distance += 1) {
+      indices.push(wrapSlotIndex(index - distance), wrapSlotIndex(index + distance));
+    }
+    return [...new Set(indices)];
+  }
+
   function setOverload(value) {
     state.overload = Math.max(0, Math.min(MAX_OVERLOAD, value));
   }
@@ -279,12 +385,22 @@
   }
 
   function currentRefreshCost() {
-    if (relicCount("free_refresh") > state.refreshCount) return 0;
+    if (relicCount("free_refresh") > state.freeRefreshUsed) return 0;
     return REFRESH_COSTS[Math.min(state.refreshCount, REFRESH_COSTS.length - 1)];
   }
 
+  function itemCost(item) {
+    if (item.id === "bone" && hasRelic("free_bone")) return 0;
+    return item.cost;
+  }
+
   function shopWeight(item) {
-    if (item.id === "bone") return state.currentDay < 3 ? 0 : 1;
+    if (item.id === "bone") {
+      const growth = relicCount("bone_growth");
+      if (growth > 0) return 1 + growth * 3;
+      if (hasRelic("free_bone")) return 2;
+      return state.currentDay < 3 ? 0 : 1;
+    }
     if (item.id === "crusher") return state.currentDay < 3 ? 1 : 3;
     if (item.id === "wasabi") return 3;
     if (["rice", "fish", "nori"].includes(item.id)) return 5;
@@ -359,7 +475,9 @@
 
   function createRecipeItem(recipe, sourceItems) {
     const noriBonus = sourceItems.some((item) => item.id === "nori") ? 3 * relicCount("premium_nori") : 0;
-    const totalScore = sourceItems.reduce((sum, item) => sum + item.score, 0) + noriBonus;
+    const chainBonus = state.dailyComboCount * relicCount("combo_chain");
+    const tripleBonus = sourceItems.length >= 3 ? 5 * relicCount("double_plating") : 0;
+    const totalScore = sourceItems.reduce((sum, item) => sum + item.score, 0) + noriBonus + chainBonus + tripleBonus;
     const totalWeight = sourceItems.reduce((sum, item) => sum + item.weight, 0);
     const weightScale = recipe.weightScale * Math.pow(0.8, relicCount("compressed_sushi"));
 
@@ -376,18 +494,34 @@
   }
 
   function dayGoal(day) {
-    const growth = Math.max(0, day - 5);
     const configuredDay = DAY_CONFIGS[day];
 
     if (configuredDay) {
       return normalizeDayGoal(configuredDay);
     }
 
+    const growth = Math.max(0, day - 5);
+    const targetGold = targetGoldForDay(day);
     return normalizeDayGoal({
-      targetGold: DAY_CONFIGS[5].targetGold + growth * 28,
+      targetGold,
       ticks: DAY_CONFIGS[5].ticks,
       startingTrash: Math.min(5, DAY_CONFIGS[5].startingTrash + Math.floor(growth / 2) + 1),
     });
+  }
+
+  function targetGoldForDay(day) {
+    const day5Target = DAY_CONFIGS[5].targetGold;
+    if (day <= 10) {
+      const midWave = day - 5;
+      return day5Target + midWave * 28 + midWave * midWave * 2;
+    }
+
+    const day10Wave = 5;
+    const day10Target = day5Target + day10Wave * 28 + day10Wave * day10Wave * 2;
+    const lateWave = day - 10;
+    const baseLateGrowth = lateWave * 48;
+    const acceleratingGrowth = lateWave * lateWave * 4;
+    return day10Target + baseLateGrowth + acceleratingGrowth;
   }
 
   function normalizeDayGoal(goal) {
@@ -440,7 +574,7 @@
     renderRelics();
 
     const canPrepare = state.phase === "Preparation";
-    const hasAffordableShopItem = canPrepare && state.shop.some((item) => state.gold >= item.cost);
+    const hasAffordableShopItem = canPrepare && state.shop.some((item) => state.gold >= itemCost(item));
     els.shopPanel.classList.toggle("shop-affordable", hasAffordableShopItem);
     const refreshCost = currentRefreshCost();
     els.refreshBtn.textContent = refreshCost > 0 ? `刷新 ${priceText(refreshCost)}` : "刷新 免费";
@@ -468,7 +602,9 @@
         className: `phase-banner ${state.lastResult?.advanced ? "phase-success" : "phase-failed"}`,
         title: state.lastResult?.advanced ? "营业成功" : "营业失败",
         sub: state.lastResult
-          ? `金币 ${state.gold}/${state.targetGold} · 本日 +${state.lastResult.produced} · 过载 ${state.overload.toFixed(1)}%`
+          ? state.lastResult.advanced
+            ? `金币 ${state.gold}/${state.targetGold} · 本日 +${state.lastResult.produced} · 过载 ${state.overload.toFixed(1)}%`
+            : `原因：${state.lastResult.failureReason}`
           : "查看日志总结；达标后点击新一天继续",
       },
     }[state.phase];
@@ -487,16 +623,35 @@
     els.resultOverlay.classList.remove("hidden");
     els.resultCard.className = `result-card ${state.lastResult.advanced ? "result-success" : "result-failed"}`;
     els.resultTitle.textContent = state.lastResult.advanced ? "营业成功" : "营业失败";
+    const nextTargetGold = dayGoal(state.currentDay + 1).targetGold;
+    const lines = state.lastResult.advanced
+      ? [
+          `达成目标：金币 ${state.gold}/${state.targetGold}`,
+          `本日收入：+${state.lastResult.produced} 金币`,
+          `剩余过载：${state.overload.toFixed(1)}%`,
+          ...(state.lastResult.piggyRescue > 0 ? [`存钱罐救援：+${state.lastResult.piggyRescue} 金币`] : []),
+          `下一天目标营业额：${nextTargetGold} 金币`,
+          state.rewardResolved ? "点击“新一天”继续" : "选择 1 个道具，或跳过",
+        ]
+      : [
+          `失败原因：${state.lastResult.failureReason}`,
+          `目标金币：${state.gold}/${state.targetGold}`,
+          `本日收入：+${state.lastResult.produced} 金币`,
+          `剩余过载：${state.overload.toFixed(1)}%`,
+          "餐厅倒闭",
+        ];
     if (state.lastResult.advanced && !state.rewardResolved) {
-      els.resultDetail.textContent = `达成目标：金币 ${state.gold}/${state.targetGold}，本日 +${state.lastResult.produced}。选择 1 个道具，或跳过。`;
+      els.resultDetail.innerHTML = resultLinesHtml(lines);
     } else {
-      els.resultDetail.textContent = state.lastResult.advanced
-        ? `达成目标：金币 ${state.gold}/${state.targetGold}，本日 +${state.lastResult.produced}，过载 ${state.overload.toFixed(1)}%。点击“新一天”继续。`
-        : `未达成目标：金币 ${state.gold}/${state.targetGold}，本日 +${state.lastResult.produced}，过载 ${state.overload.toFixed(1)}%。餐厅倒闭。`;
+      els.resultDetail.innerHTML = resultLinesHtml(lines);
     }
     renderRewardChoices();
     els.resultNextDayBtn.hidden = !(state.lastResult.advanced && state.rewardResolved);
     els.retryBtn.hidden = state.lastResult.advanced;
+  }
+
+  function resultLinesHtml(lines) {
+    return lines.map((line) => `<div>${escapeHtml(line)}</div>`).join("");
   }
 
   function renderRewardChoices() {
@@ -536,13 +691,14 @@
 
     groupedRelics.forEach((relic) => {
       const relicEl = document.createElement(relic.type === "Active" ? "button" : "div");
+      const description = relicDescription(relic);
       relicEl.className = `owned-relic${relic.type === "Active" ? " active-relic" : ""}${state.activeRelicId === relic.id ? " selected" : ""}`;
-      relicEl.title = relic.description;
+      relicEl.title = description;
       relicEl.innerHTML = `
         <img src="${relic.icon}" alt="${relic.name}" />
         <span>
           <strong>${relic.name}${relic.count > 1 ? ` x${relic.count}` : ""}</strong>
-          <small>${relic.description}</small>
+          <small>${description}</small>
         </span>
       `;
       if (relic.type === "Active") {
@@ -550,6 +706,13 @@
       }
       els.relicList.appendChild(relicEl);
     });
+  }
+
+  function relicDescription(relic) {
+    if (relic.id === "piggy_bank") {
+      return `${relic.description} 当前存款：${state.piggyBankGold} 金币。`;
+    }
+    return relic.description;
   }
 
   function renderConsumerState() {
@@ -617,58 +780,110 @@
   }
 
   function renderBelt() {
-    els.belt.innerHTML = "";
-    const center = 50;
-    const radius = 39;
-
     state.slots.forEach((item, index) => {
       const comboPreview = selectedPlacementPreview(index);
+      const plateMultiplier = state.plateMultipliers[index] ?? 1;
+      const plateSprite = plateMultiplier > 1 ? SPRITES.goldenPlate : SPRITES.plate;
       const angle = -90 + (index * 360) / SLOT_COUNT;
       const rad = (angle * Math.PI) / 180;
-      const x = center + Math.cos(rad) * radius;
-      const y = center + Math.sin(rad) * radius;
-      const slot = document.createElement("button");
-      slot.className = `slot${item ? " occupied" : ""}${index === 0 ? " feed" : ""}${state.selectedSlot === index ? " selected" : ""}${comboPreview ? " combo-target" : ""}`;
-      slot.dataset.slotIndex = String(index);
+      const x = SLOT_CENTER_X + Math.cos(rad) * SLOT_RING_RADIUS;
+      const y = SLOT_CENTER_Y + Math.sin(rad) * SLOT_RING_RADIUS;
+      const slot = getOrCreateSlotElement(index);
+      slot.className = `slot${item ? " occupied" : ""}${plateMultiplier > 1 ? " upgraded-plate" : ""}${index === 0 ? " feed" : ""}${state.selectedSlot === index ? " selected" : ""}${comboPreview ? " combo-target" : ""}`;
       slot.style.left = `${x}%`;
       slot.style.top = `${y}%`;
       slot.title = comboPreview ? `Slot ${index}：可生成 ${comboPreview.name}` : `Slot ${index}`;
-      slot.innerHTML = `
-        <img class="plate-img" src="${SPRITES.plate}" alt="" draggable="false" />
-        ${item ? `<img class="slot-item-img" src="${item.sprite}" alt="${item.name}" draggable="false" />` : `<div class="slot-empty-dot">·</div>`}
-        <div class="slot-name">${item ? item.name : `Slot ${index}`}</div>
-        ${comboPreview ? `<div class="combo-preview">${comboPreview.previewLabel ?? `可出 ${comboPreview.name}`}</div>` : ""}
-      `;
-      slot.addEventListener("click", (event) => {
-        if (state.suppressSlotClick) {
-          event.preventDefault();
-          event.stopPropagation();
-          state.suppressSlotClick = false;
-          return;
-        }
-        onSlotClick(index);
-      });
-      slot.addEventListener("pointerdown", (event) => onSlotPointerDown(event, index));
-      slot.addEventListener("dragstart", (event) => event.preventDefault());
-      slot.addEventListener("dragover", (event) => onSlotDragOver(event, index));
-      slot.addEventListener("dragleave", () => slot.classList.remove("drop-target"));
-      slot.addEventListener("drop", (event) => onSlotDrop(event, index));
+
+      const plateImg = slot.querySelector(".plate-img");
+      if (plateImg.getAttribute("src") !== plateSprite) plateImg.src = plateSprite;
+
+      const itemImg = slot.querySelector(".slot-item-img");
+      const emptyDot = slot.querySelector(".slot-empty-dot");
+      const slotName = slot.querySelector(".slot-name");
+      const plateBonus = slot.querySelector(".plate-bonus");
+      const comboPreviewEl = slot.querySelector(".combo-preview");
+
       if (item) {
+        itemImg.hidden = false;
+        emptyDot.hidden = true;
+        if (itemImg.getAttribute("src") !== item.sprite) itemImg.src = item.sprite;
+        itemImg.alt = item.name;
+        slotName.hidden = false;
+        slotName.textContent = item.name;
         slot.dataset.tooltipHtml = itemDetailHtml(item);
-        slot.addEventListener("mouseenter", (event) => showItemTooltip(slot.dataset.tooltipHtml, event));
-        slot.addEventListener("mousemove", (event) => moveItemTooltip(event));
-        slot.addEventListener("mouseleave", hideItemTooltip);
-        slot.addEventListener("focus", (event) => showItemTooltip(slot.dataset.tooltipHtml, event));
-        slot.addEventListener("blur", hideItemTooltip);
+      } else {
+        itemImg.hidden = true;
+        emptyDot.hidden = false;
+        slotName.hidden = true;
+        delete slot.dataset.tooltipHtml;
       }
-      els.belt.appendChild(slot);
+
+      plateBonus.hidden = plateMultiplier <= 1;
+      plateBonus.textContent = `x${plateMultiplier}`;
+      comboPreviewEl.hidden = !comboPreview;
+      comboPreviewEl.textContent = comboPreview ? (comboPreview.previewLabel ?? `可出 ${comboPreview.name}`) : "";
     });
+  }
+
+  function getOrCreateSlotElement(index) {
+    let slot = els.belt.querySelector(`.slot[data-slot-index="${index}"]`);
+    if (slot) return slot;
+
+    slot = document.createElement("button");
+    slot.dataset.slotIndex = String(index);
+    slot.innerHTML = `
+      <img class="plate-img" alt="" draggable="false" />
+      <img class="slot-item-img" alt="" draggable="false" hidden />
+      <div class="slot-empty-dot">·</div>
+      <div class="slot-name" hidden></div>
+      <div class="plate-bonus" hidden></div>
+      <div class="combo-preview" hidden></div>
+    `;
+    slot.addEventListener("click", (event) => {
+      const slotIndex = Number(slot.dataset.slotIndex);
+      if (state.suppressSlotClick) {
+        event.preventDefault();
+        event.stopPropagation();
+        state.suppressSlotClick = false;
+        return;
+      }
+      onSlotClick(slotIndex);
+    });
+    slot.addEventListener("pointerdown", (event) => onSlotPointerDown(event, Number(slot.dataset.slotIndex)));
+    slot.addEventListener("dragstart", (event) => event.preventDefault());
+    slot.addEventListener("dragover", (event) => onSlotDragOver(event, Number(slot.dataset.slotIndex)));
+    slot.addEventListener("dragleave", () => slot.classList.remove("drop-target"));
+    slot.addEventListener("drop", (event) => onSlotDrop(event, Number(slot.dataset.slotIndex)));
+    slot.addEventListener("mouseenter", (event) => {
+      if (slot.dataset.tooltipHtml) showItemTooltip(slot.dataset.tooltipHtml, event);
+    });
+    slot.addEventListener("mousemove", (event) => {
+      if (slot.dataset.tooltipHtml) moveItemTooltip(event);
+    });
+    slot.addEventListener("mouseleave", hideItemTooltip);
+    slot.addEventListener("focus", (event) => {
+      if (slot.dataset.tooltipHtml) showItemTooltip(slot.dataset.tooltipHtml, event);
+    });
+    slot.addEventListener("blur", hideItemTooltip);
+    els.belt.appendChild(slot);
+    return slot;
   }
 
   function renderShop() {
     els.shopList.innerHTML = "";
     state.shop.forEach((item, index) => {
-      const card = createItemCard(item, priceText(item.cost), (event) => buyItem(index, event));
+      const card = createItemCard(item, priceText(itemCost(item)), (event) => buyItem(index, event));
+      card.draggable = false;
+      card.dataset.shopIndex = String(index);
+      card.addEventListener("click", (event) => {
+        if (state.suppressShopClick) {
+          event.preventDefault();
+          event.stopPropagation();
+          state.suppressShopClick = false;
+        }
+      }, true);
+      card.addEventListener("pointerdown", (event) => onShopPointerDown(event, item));
+      card.addEventListener("dragstart", (event) => event.preventDefault());
       els.shopList.appendChild(card);
     });
     if (state.shop.length === 0) {
@@ -729,6 +944,37 @@
     card.addEventListener("focus", (event) => showItemTooltip(card.dataset.tooltipHtml, event));
     card.addEventListener("blur", hideItemTooltip);
     return card;
+  }
+
+  function onShopPointerDown(event, item) {
+    if (state.phase !== "Preparation" || event.button !== 0) return;
+
+    const startX = event.clientX;
+    const startY = event.clientY;
+    let warned = false;
+
+    const onPointerMove = (moveEvent) => {
+      const distance = Math.hypot(moveEvent.clientX - startX, moveEvent.clientY - startY);
+      if (warned || distance < 8) return;
+
+      warned = true;
+      state.suppressShopClick = true;
+      hideItemTooltip();
+      spawnPointerFloatingText(moveEvent, "请先点击购买", "bad");
+      setHint(`商店里的 ${item.name} 需要先点击购买，进入备料区后才能拖到餐盘。`);
+      log(`提示：${item.name} 需要先购买，再从备料区拖到餐盘。`, "bad");
+    };
+
+    const onPointerUp = () => {
+      window.removeEventListener("pointermove", onPointerMove);
+      window.setTimeout(() => {
+        state.suppressShopClick = false;
+      }, 0);
+    };
+
+    window.addEventListener("pointermove", onPointerMove);
+    window.addEventListener("pointerup", onPointerUp, { once: true });
+    window.addEventListener("pointercancel", onPointerUp, { once: true });
   }
 
   function showItemTooltip(html, event) {
@@ -803,7 +1049,7 @@
   }
 
   function itemPurchaseText(item) {
-    return item.cost ? `${item.cost} 金币` : "";
+    return item.cost ? `${itemCost(item)} 金币` : "";
   }
 
   function priceText(amount) {
@@ -811,14 +1057,15 @@
   }
 
   function itemScoreText(item) {
-    if (isTrash(item)) return `投喂 0G；粉碎 +${2 + relicCount("crusher_upgrade") * 2}G`;
-    if (isCrusher(item)) return `粉碎相邻鱼骨 +${2 + relicCount("crusher_upgrade") * 2}G`;
+    const crushGold = 2 + relicCount("crusher_upgrade") * 2 + relicCount("bone_gold") * 2;
+    if (isTrash(item)) return `投喂 0G；粉碎 +${crushGold}G`;
+    if (isCrusher(item)) return `范围 ${1 + relicCount("crusher_range")}；粉碎鱼骨 +${crushGold}G`;
     return `投喂 +${item.score}G`;
   }
 
   function itemOverloadText(item) {
     if (isTrash(item)) return "盘面高压；被吃到触发惩罚";
-    if (isCrusher(item)) return `自身有重量压力；粉碎鱼骨 -${OVERLOAD_BALANCE.crusherRelief}`;
+    if (isCrusher(item)) return `自身有重量压力；粉碎鱼骨 -${OVERLOAD_BALANCE.crusherRelief + relicCount("bone_relief") * 4}`;
     const relief = hasTag(item, "Premium")
       ? OVERLOAD_BALANCE.premiumRelief
       : hasTag(item, "Combo")
@@ -1063,6 +1310,7 @@
     const goal = dayGoal(state.currentDay);
     state.targetGold = goal.targetGold;
     state.refreshCount = 0;
+    state.freeRefreshUsed = 0;
     state.phase = "Preparation";
     state.lastResult = null;
     state.pendingRewardChoices = [];
@@ -1071,8 +1319,9 @@
     state.selectedSlot = null;
     state.activeRelicId = null;
     log(`第 ${state.currentDay} 天开始整备。目标金币 ${state.targetGold}。`, "good");
+    const trashInjection = injectTrashForPreparation(state.currentDay);
     refreshShop(true);
-    render();
+    showTrashInjectionFeedback(state.currentDay, trashInjection);
   }
 
   function restartGame() {
@@ -1082,8 +1331,11 @@
     state.currentTick = 0;
     state.totalTicks = 0;
     state.targetGold = dayGoal(1).targetGold;
-    state.gold = 16;
+    state.gold = 22;
     state.goldAtBusinessStart = 0;
+    state.piggyBankGold = 0;
+    state.lastPiggyRescue = 0;
+    state.dailyComboCount = 0;
     state.phase = "Preparation";
     state.lastResult = null;
     state.overload = 0;
@@ -1091,6 +1343,7 @@
     state.penaltyTicks = 0;
     state.consumerMood = "happy";
     state.slots = Array(SLOT_COUNT).fill(null);
+    state.plateMultipliers = Array(SLOT_COUNT).fill(1);
     state.inventory = [];
     state.shop = [];
     state.playerRelics = [];
@@ -1100,6 +1353,7 @@
     state.selectedSlot = null;
     state.activeRelicId = null;
     state.refreshCount = 0;
+    state.freeRefreshUsed = 0;
 
     log("重新开始游戏。回到第 1 天营业前准备。", "good");
     startNewDay();
@@ -1116,7 +1370,11 @@
         return;
       }
       state.gold -= cost;
-      state.refreshCount += 1;
+      if (cost === 0) {
+        state.freeRefreshUsed += 1;
+      } else {
+        state.refreshCount += 1;
+      }
     }
     state.shop = drawWeightedShop(3);
     log(`商店刷新：${state.shop.map((item) => item.name).join("、")}`);
@@ -1127,13 +1385,14 @@
     if (state.phase !== "Preparation") return;
     const item = state.shop[shopIndex];
     if (!item) return;
-    if (state.gold < item.cost) {
-      spawnPointerFloatingText(event, `金币不足：差 ${item.cost - state.gold} 金币`, "bad");
-      setHint(`金币不足，购买 ${item.name} 需要 ${item.cost} 金币。`);
+    const cost = itemCost(item);
+    if (state.gold < cost) {
+      spawnPointerFloatingText(event, `金币不足：差 ${cost - state.gold} 金币`, "bad");
+      setHint(`金币不足，购买 ${item.name} 需要 ${cost} 金币。`);
       log(`金币不足，买不起 ${item.name}。`, "bad");
       return;
     }
-    state.gold -= item.cost;
+    state.gold -= cost;
     state.shop.splice(shopIndex, 1);
     state.inventory.push(cloneItem(item));
     setHint(`已购买 ${item.name}。现在可以把它从备料区拖到空餐盘。`);
@@ -1204,21 +1463,35 @@
     state.currentTick = 0;
     state.totalTicks = goal.ticks;
     state.goldAtBusinessStart = state.gold;
+    state.dailyComboCount = 0;
     setHint(`营业开始：传送带自动转动，等待 ${goal.ticks} 轮结算。`);
     log(`开始营业：自动运行 ${goal.ticks} 轮。`, "good");
+    hideItemTooltip();
+    checkCombine();
     let tick = 0;
-    state.runningTimer = window.setInterval(() => {
+    const runNextTick = () => {
+      if (state.phase !== "Running") {
+        state.runningTimer = null;
+        return;
+      }
+
       tick += 1;
       state.currentTick = tick;
       rotateBelt();
+
       if (tick >= goal.ticks || state.overload >= MAX_OVERLOAD) {
-        window.clearInterval(state.runningTimer);
         state.runningTimer = null;
         state.phase = "Finished";
         printSummary();
+        render();
+        return;
       }
+
       render();
-    }, 650);
+      state.runningTimer = window.setTimeout(runNextTick, 650);
+    };
+
+    state.runningTimer = window.setTimeout(runNextTick, 1000);
     render();
   }
 
@@ -1226,10 +1499,13 @@
     hideItemTooltip();
     pulseBelt();
     const last = state.slots[SLOT_COUNT - 1];
+    const lastPlateMultiplier = state.plateMultipliers[SLOT_COUNT - 1];
     for (let i = SLOT_COUNT - 1; i > 0; i -= 1) {
       state.slots[i] = state.slots[i - 1];
+      state.plateMultipliers[i] = state.plateMultipliers[i - 1];
     }
     state.slots[0] = last;
+    state.plateMultipliers[0] = lastPlateMultiplier;
     checkCombine();
     applyPressure();
     feedCenter();
@@ -1245,26 +1521,35 @@
         const crusher = state.slots[i];
         if (!isCrusher(crusher)) continue;
 
-        const trashSlots = adjacentSlotIndices(i).filter((slotIndex) => {
+        const crusherRange = 1 + relicCount("crusher_range");
+        const trashSlots = rangedAdjacentSlotIndices(i, crusherRange).filter((slotIndex) => {
           const neighbor = state.slots[slotIndex];
           return neighbor && isTrash(neighbor);
         });
 
         if (trashSlots.length === 0) continue;
 
-        const crushGold = 2 + relicCount("crusher_upgrade") * 2;
+        const crushGold = 2 + relicCount("crusher_upgrade") * 2 + relicCount("bone_gold") * 2;
+        const crushRelief = OVERLOAD_BALANCE.crusherRelief + relicCount("bone_relief") * 4;
+        const recycleChance = Math.min(0.9, relicCount("bone_recycle") * 0.25);
+        let recycled = 0;
         trashSlots.forEach((slotIndex) => {
           const trash = state.slots[slotIndex];
           state.slots[slotIndex] = null;
           spawnSlotEffect(slotIndex, SPRITES.smoke, "smoke-pop");
-          spawnFloatingText(`+${crushGold}G`, slotIndex, "good");
+          if (recycleChance > 0 && Math.random() < recycleChance) {
+            state.inventory.push(cloneItem(trash));
+            recycled += 1;
+          }
           log(`连锁：厨余粉碎机粉碎了相邻的 ${trash.name}。`, "good");
         });
 
-        state.gold += trashSlots.length * crushGold;
-        setOverload(state.overload - OVERLOAD_BALANCE.crusherRelief * trashSlots.length);
+        const totalCrushGold = trashSlots.length * crushGold;
+        state.gold += totalCrushGold;
+        spawnGoldRewardText(totalCrushGold, i, trashSlots.length > 1 ? `粉碎 x${trashSlots.length}` : "粉碎");
+        setOverload(state.overload - crushRelief * trashSlots.length);
         log(
-          `连锁：粉碎机清理 ${trashSlots.length} 个鱼骨，金币 +${trashSlots.length * crushGold}，过载 -${OVERLOAD_BALANCE.crusherRelief * trashSlots.length}。`,
+          `连锁：粉碎机清理 ${trashSlots.length} 个鱼骨，金币 +${totalCrushGold}，过载 -${crushRelief * trashSlots.length}${recycled > 0 ? `，回收 ${recycled} 个鱼骨` : ""}。`,
           "good"
         );
         changed = true;
@@ -1287,6 +1572,7 @@
           spawnSlotEffect(i, SPRITES.merge, "merge-burst");
           spawnFloatingText("PREMIUM", i, "good");
           setConsumerMood("combo", 1900);
+          onComboCreated(2);
           log(`连锁：${a.name}、${b.name}、${c.name}合体成${combined.name}，腾出了 2 个空格！`, "good");
           changed = true;
           break;
@@ -1300,12 +1586,22 @@
           spawnSlotEffect(i, SPRITES.merge, "merge-burst");
           spawnFloatingText(hasTag(combined, "Premium") ? "PREMIUM" : "COMBO", i, "good");
           setConsumerMood("combo", hasTag(combined, "Premium") ? 1900 : 1700);
+          onComboCreated(1);
           log(`连锁：${a.name}与${b.name}合体成${combined.name}，腾出了 1 个空格！`, "good");
           changed = true;
           break;
         }
       }
     }
+  }
+
+  function onComboCreated(freedSlots) {
+    const relief = freedSlots * relicCount("artisan_hand");
+    if (relief > 0) {
+      setOverload(state.overload - relief);
+      spawnStageFloatingText(`匠人手法 -${relief} 过载`, "good");
+    }
+    state.dailyComboCount += 1;
   }
 
   function applyPressure() {
@@ -1344,8 +1640,9 @@
 
     if (isFood(item)) {
       spawnFeedAnimation(item, hasTag(item, "Combo") ? "combo" : "good");
+      const plateMultiplier = state.plateMultipliers[0] ?? 1;
       state.slots[0] = null;
-      let earned = item.score;
+      let earned = item.score * plateMultiplier;
       if (state.penaltyTicks > 0) {
         earned = Math.floor(earned * 0.5);
         state.penaltyTicks -= 1;
@@ -1361,35 +1658,40 @@
       setOverload(state.overload - relief - happyStickerRelief);
       setConsumerMood(hasTag(item, "Combo") ? "combo" : "happy", hasTag(item, "Combo") ? 1700 : 1100);
       spawnSlotEffect(0, SPRITES.coin, "coin-pop");
-      spawnFloatingText(`+${earned}G`, 0, "good");
       const vipTipCount = relicCount("vip_tip");
       const vipTipChance = Math.min(0.9, 0.3 + Math.max(0, vipTipCount - 1) * 0.15);
       const vipTipBonus = vipTipCount * 2;
       if (vipTipCount > 0 && Math.random() < vipTipChance) {
         state.gold += vipTipBonus;
         earned += vipTipBonus;
-        spawnFloatingText(`+${vipTipBonus} 小费`, 0, "good");
       log(`VIP 小费触发：额外金币 +${vipTipBonus}。`, "good");
     }
-      log(`大胃王吞下 ${item.name}，金币 +${earned}，过载 -${relief + happyStickerRelief}。`, "good");
+      spawnGoldRewardText(earned, 0, vipTipBonus > 0 ? `含小费 +${vipTipBonus}` : null);
+      log(`大胃王吞下 ${item.name}，金币 +${earned}${plateMultiplier > 1 ? `（金色餐盘 x${plateMultiplier}）` : ""}，过载 -${relief + happyStickerRelief}。`, "good");
     }
   }
 
-  function injectTrashAfterBusiness(nextDay) {
-    const count = dayGoal(nextDay).startingTrash;
+  function injectTrashForPreparation(day) {
+    const count = dayGoal(day).startingTrash + relicCount("bone_growth");
     const injectedSlots = [];
     for (let i = 0; i < count; i += 1) {
       const slotIndex = injectTrash();
       if (slotIndex !== null) injectedSlots.push(slotIndex);
     }
+
+    return { count, injectedSlots };
+  }
+
+  function showTrashInjectionFeedback(day, injection) {
+    const { count, injectedSlots } = injection;
     const injected = injectedSlots.length;
     if (count > 0) {
       if (injected > 0) {
-        setHint(`警告：为第 ${nextDay} 天生成了 ${injected} 个鱼刺，请在整备阶段处理。`);
-        spawnTrashInjectionNotice(injected, nextDay);
+        setHint(`警告：第 ${day} 天生成了 ${injected} 个鱼刺，请在整备阶段处理。`);
+        spawnTrashInjectionNotice(injected, day);
         injectedSlots.forEach((slotIndex) => spawnTrashWarning(slotIndex));
       }
-      log(`旋转结束：为第 ${nextDay} 天生成 ${injected}/${count} 个鱼骨。`, injected > 0 ? "bad" : undefined);
+      log(`营业前准备：第 ${day} 天生成 ${injected}/${count} 个鱼骨。`, injected > 0 ? "bad" : undefined);
     }
   }
 
@@ -1403,13 +1705,11 @@
   }
 
   function slotPosition(slotIndex) {
-    const center = 50;
-    const radius = 39;
     const angle = -90 + (slotIndex * 360) / SLOT_COUNT;
     const rad = (angle * Math.PI) / 180;
     return {
-      x: center + Math.cos(rad) * radius,
-      y: center + Math.sin(rad) * radius,
+      x: SLOT_CENTER_X + Math.cos(rad) * SLOT_RING_RADIUS,
+      y: SLOT_CENTER_Y + Math.sin(rad) * SLOT_RING_RADIUS,
     };
   }
 
@@ -1434,6 +1734,20 @@
     label.style.top = `${pos.y}%`;
     els.effectLayer.appendChild(label);
     window.setTimeout(() => label.remove(), 900);
+  }
+
+  function spawnGoldRewardText(amount, slotIndex, caption) {
+    const pos = slotPosition(slotIndex);
+    const label = document.createElement("div");
+    label.className = "gold-reward-text";
+    label.innerHTML = `
+      <span class="gold-reward-main">+${amount} 金币</span>
+      ${caption ? `<span class="gold-reward-caption">${caption}</span>` : ""}
+    `;
+    label.style.left = `${pos.x}%`;
+    label.style.top = `${pos.y}%`;
+    els.effectLayer.appendChild(label);
+    window.setTimeout(() => label.remove(), 1150);
   }
 
   function spawnTrashWarning(slotIndex) {
@@ -1550,35 +1864,89 @@
   }
 
   function pulseBelt() {
-    els.conveyorBase.classList.remove("belt-step");
-    void els.conveyorBase.offsetWidth;
-    els.conveyorBase.classList.add("belt-step");
+    els.belt.classList.remove("orbit-step");
+    window.requestAnimationFrame(() => {
+      window.requestAnimationFrame(() => {
+        els.belt.classList.add("orbit-step");
+      });
+    });
   }
 
   function shakeStage() {
-    els.belt.classList.remove("stage-shake");
-    void els.belt.offsetWidth;
-    els.belt.classList.add("stage-shake");
+    els.stage.classList.remove("stage-shake");
+    void els.stage.offsetWidth;
+    els.stage.classList.add("stage-shake");
   }
 
   function printSummary() {
+    state.lastPiggyRescue = 0;
     const produced = state.gold - state.goldAtBusinessStart;
-    const advanced = state.gold >= state.targetGold && state.overload < MAX_OVERLOAD;
-    state.lastResult = { advanced, produced };
+    let advanced = state.gold >= state.targetGold && state.overload < MAX_OVERLOAD;
+    if (!advanced) {
+      advanced = tryBreakPiggyBank();
+    }
+    const failureReason = advanced ? "" : getFailureReason();
+    state.lastResult = { advanced, produced, piggyRescue: state.lastPiggyRescue ?? 0, failureReason };
     log(`营业总结：当前金币 ${state.gold}/${state.targetGold}，本日 +${produced}，过载 ${state.overload.toFixed(1)}%。`);
     if (advanced) {
+      depositPiggyBank();
       state.pendingRewardChoices = drawRelicChoices(2);
       state.rewardResolved = state.pendingRewardChoices.length === 0;
       log(
         state.rewardResolved ? "达标晋级！道具已全部收集，点击新一天继续。" : "达标晋级！请选择 1 个道具奖励。",
         "good"
       );
-      injectTrashAfterBusiness(state.currentDay + 1);
     } else {
       state.pendingRewardChoices = [];
       state.rewardResolved = true;
-      log(`餐厅倒闭！最终坚持到第 ${state.currentDay} 天。`, "bad");
+      log(`餐厅倒闭：${failureReason}。最终坚持到第 ${state.currentDay} 天。`, "bad");
     }
+  }
+
+  function getFailureReason() {
+    const goldShortfall = Math.max(0, state.targetGold - state.gold);
+    const isGoldFailed = goldShortfall > 0;
+    const isOverloaded = state.overload >= MAX_OVERLOAD;
+
+    if (isGoldFailed && isOverloaded) {
+      return `金币不足 ${goldShortfall}，且传送带过载`;
+    }
+
+    if (isGoldFailed) {
+      return `金币不足 ${goldShortfall}`;
+    }
+
+    if (isOverloaded) {
+      return "传送带过载";
+    }
+
+    return "未达成营业条件";
+  }
+
+  function depositPiggyBank() {
+    const count = relicCount("piggy_bank");
+    if (count === 0) return;
+
+    const deposit = 2 * count;
+    state.piggyBankGold += deposit;
+    log(`存钱罐存入 ${deposit} 金币，当前存款 ${state.piggyBankGold}。`, "good");
+  }
+
+  function tryBreakPiggyBank() {
+    const canRescue =
+      hasRelic("piggy_bank") &&
+      state.piggyBankGold > 0 &&
+      state.gold < state.targetGold &&
+      state.overload < MAX_OVERLOAD;
+    if (!canRescue) return false;
+
+    const payout = state.piggyBankGold * 5;
+    state.gold += payout;
+    state.lastPiggyRescue = payout;
+    log(`存钱罐打碎：返还 ${payout} 金币。`, "good");
+    spawnHudGoldChange(payout);
+    state.piggyBankGold = 0;
+    return state.gold >= state.targetGold && state.overload < MAX_OVERLOAD;
   }
 
   function drawRelicChoices(count) {
@@ -1632,11 +2000,36 @@
       state.selectedSlot = null;
       setHint(state.activeRelicId ? "镊子已准备：点击一个鱼骨将其移除。" : "已取消使用镊子。");
       render();
+      return;
+    }
+
+    if (relicId === "golden_plate_upgrade") {
+      state.activeRelicId = state.activeRelicId === relicId ? null : relicId;
+      state.selectedInventory = null;
+      state.selectedSlot = null;
+      setHint(state.activeRelicId ? "金色餐盘券已准备：点击一个餐盘升级，食物投喂金币翻倍。" : "已取消使用金色餐盘券。");
+      render();
     }
   }
 
   function useActiveRelicOnSlot(relicId, slotIndex) {
     const item = state.slots[slotIndex];
+    if (relicId === "golden_plate_upgrade") {
+      if ((state.plateMultipliers[slotIndex] ?? 1) > 1) {
+        setHint("这个餐盘已经是金色餐盘。");
+        return;
+      }
+
+      state.plateMultipliers[slotIndex] = 2;
+      state.activeRelicId = null;
+      consumeRelic(relicId);
+      spawnSlotEffect(slotIndex, SPRITES.goldenPlate, "place-pop");
+      setHint(`Slot[${slotIndex}] 已升级为金色餐盘：上面的食物投喂金币 x2。`);
+      log(`使用金色餐盘券：Slot[${slotIndex}] 升级为金色餐盘。`, "good");
+      render();
+      return;
+    }
+
     if (relicId !== "tweezers") return;
 
     if (!item || !isTrash(item)) {
@@ -1709,12 +2102,6 @@
     showItemTooltip(comboTooltipHtml(line), event);
   });
   els.comboGuide.addEventListener("focusout", hideItemTooltip);
-  els.clearSelectBtn.addEventListener("click", () => {
-    state.selectedInventory = null;
-    state.selectedSlot = null;
-    state.activeRelicId = null;
-    render();
-  });
 
   startNewDay();
 })();
