@@ -161,6 +161,22 @@ button.next-day-prompt {
   width: 34px;
 }
 
+.audio-toggle-button {
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 1000;
+  height: 34px;
+  min-height: 34px;
+  padding: 0 12px;
+}
+
+.audio-toggle-button.is-muted {
+  background: linear-gradient(180deg, #8f6a52 0%, #56301e 100%);
+  border-color: rgba(64, 27, 10, 0.8);
+  color: #f4d1ad;
+  box-shadow: 0 4px 0 #3c1d10, 0 10px 14px rgba(35, 15, 6, 0.26);
+}
+
 h1,
 h2,
 p {

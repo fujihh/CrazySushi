@@ -42,12 +42,14 @@
   const MASTER_VOLUME = 0.18;
   const MUSIC_VOLUME = 0.055;
   const TUTORIAL_STORAGE_KEY = "crazySushiActionTutorialSeen";
+  const MUTE_STORAGE_KEY = "crazySushiMuted";
   const DESIGN_WIDTH = 1600;
   const DESIGN_HEIGHT = 1000;
   let audioContext = null;
   let musicTimer = null;
   let musicStarted = false;
   let musicStep = 0;
+  let isMuted = window.localStorage.getItem(MUTE_STORAGE_KEY) === "1";
 
   const itemPool = [
     { id: "rice", name: "醋饭", tags: ["Raw"], score: 3, weight: 1, cost: 2, sprite: SPRITES.rice },
@@ -345,6 +347,7 @@
     retryBtn: document.getElementById("retryBtn"),
     tutorialCoach: document.getElementById("tutorialCoach"),
     tutorialBtn: document.getElementById("tutorialBtn"),
+    muteBtn: document.getElementById("muteBtn"),
     tutorialCoachTitle: document.getElementById("tutorialCoachTitle"),
     tutorialCoachText: document.getElementById("tutorialCoachText"),
     tutorialDoneBtn: document.getElementById("tutorialDoneBtn"),
@@ -377,6 +380,7 @@
   }
 
   function getAudioContext() {
+    if (isMuted) return null;
     const AudioContextClass = window.AudioContext || window.webkitAudioContext;
     if (!AudioContextClass) return null;
     if (!audioContext) audioContext = new AudioContextClass();
@@ -385,6 +389,7 @@
   }
 
   function playTone(frequency, duration, type = "sine", gain = 0.35, delay = 0) {
+    if (isMuted) return;
     const context = getAudioContext();
     if (!context) return;
 
@@ -403,6 +408,7 @@
   }
 
   function playMusicTone(frequency, duration, delay = 0, gain = 1, type = "sine") {
+    if (isMuted) return;
     const context = getAudioContext();
     if (!context) return;
 
@@ -425,7 +431,7 @@
   }
 
   function startBackgroundMusic() {
-    if (musicStarted) return;
+    if (musicStarted || isMuted) return;
     const context = getAudioContext();
     if (!context) return;
     musicStarted = true;
@@ -433,7 +439,10 @@
   }
 
   function scheduleMusicLoop() {
-    if (!musicStarted) return;
+    if (!musicStarted || isMuted) {
+      musicTimer = null;
+      return;
+    }
 
     const melody = [
       392, 440, 523.25, 587.33,
@@ -456,6 +465,7 @@
   }
 
   function playNoise(duration, gain = 0.25, delay = 0, frequency = 900) {
+    if (isMuted) return;
     const context = getAudioContext();
     if (!context) return;
 
@@ -485,6 +495,7 @@
   }
 
   function playSound(name) {
+    if (isMuted) return;
     switch (name) {
       case "buy":
         playTone(660, 0.08, "triangle", 0.28);
@@ -552,6 +563,38 @@
       default:
         break;
     }
+  }
+
+  function setMuted(nextMuted) {
+    isMuted = nextMuted;
+    window.localStorage.setItem(MUTE_STORAGE_KEY, isMuted ? "1" : "0");
+    updateMuteButton();
+
+    if (isMuted) {
+      if (musicTimer !== null) {
+        window.clearTimeout(musicTimer);
+        musicTimer = null;
+      }
+      return;
+    }
+
+    if (!musicStarted) {
+      startBackgroundMusic();
+      playSound("place");
+      return;
+    }
+
+    if (musicTimer === null) {
+      scheduleMusicLoop();
+    }
+    playSound("place");
+  }
+
+  function updateMuteButton() {
+    els.muteBtn.textContent = isMuted ? "开音" : "静音";
+    els.muteBtn.classList.toggle("is-muted", isMuted);
+    els.muteBtn.setAttribute("aria-pressed", String(isMuted));
+    els.muteBtn.title = isMuted ? "当前已静音，点击恢复声音" : "当前有声音，点击静音";
   }
 
   function wrapSlotIndex(index) {
@@ -2471,6 +2514,7 @@
   els.retryBtn.addEventListener("click", restartGame);
   els.skipRewardBtn.addEventListener("click", skipRelicReward);
   els.tutorialBtn.addEventListener("click", () => showTutorial(true));
+  els.muteBtn.addEventListener("click", () => setMuted(!isMuted));
   els.tutorialDoneBtn.addEventListener("click", () => {
     playSound("place");
     closeTutorial();
@@ -2502,6 +2546,7 @@
   document.addEventListener("keydown", startBackgroundMusic, { once: true });
 
   updateGameScale();
+  updateMuteButton();
   startNewDay();
   showTutorial();
 })();
