@@ -1976,35 +1976,44 @@
         const c = state.slots[indexC];
         const tripleRecipe = findTripleRecipe(a, b, c);
 
-        if (tripleRecipe) {
-          const combined = createRecipeItem(tripleRecipe, [a, b, c]);
-          state.slots[indexA] = null;
-          state.slots[indexB] = null;
-          state.slots[indexC] = combined;
-          playSound("premium");
-          spawnSlotEffect(indexC, SPRITES.merge, "merge-burst");
-          spawnFloatingText("PREMIUM", indexC, "good");
-          setConsumerMood("combo", 1900);
-          onComboCreated(2);
-          log(`连锁：${a.name}、${b.name}、${c.name}合体成${combined.name}，腾出了 2 个空格！`, "good");
-          changed = true;
-          break;
-        }
+        if (!tripleRecipe) continue;
 
+        const combined = createRecipeItem(tripleRecipe, [a, b, c]);
+        state.slots[indexA] = null;
+        state.slots[indexB] = null;
+        state.slots[indexC] = combined;
+        playSound("premium");
+        spawnSlotEffect(indexC, SPRITES.merge, "merge-burst");
+        spawnFloatingText("PREMIUM", indexC, "good");
+        setConsumerMood("combo", 1900);
+        onComboCreated(2);
+        log(`连锁：${a.name}、${b.name}、${c.name}合体成${combined.name}，腾出了 2 个空格！`, "good");
+        changed = true;
+        break;
+      }
+
+      if (changed) continue;
+
+      for (let i = 0; i < SLOT_COUNT; i += 1) {
+        const indexA = i;
+        const indexB = wrapSlotIndex(i + 1);
+        const a = state.slots[indexA];
+        const b = state.slots[indexB];
         const pairRecipe = findPairRecipe(a, b);
-        if (pairRecipe) {
-          const combined = createRecipeItem(pairRecipe, [a, b]);
-          state.slots[indexA] = null;
-          state.slots[indexB] = combined;
-          playSound(hasTag(combined, "Premium") ? "premium" : "merge");
-          spawnSlotEffect(indexB, SPRITES.merge, "merge-burst");
-          spawnFloatingText(hasTag(combined, "Premium") ? "PREMIUM" : "COMBO", indexB, "good");
-          setConsumerMood("combo", hasTag(combined, "Premium") ? 1900 : 1700);
-          onComboCreated(1);
-          log(`连锁：${a.name}与${b.name}合体成${combined.name}，腾出了 1 个空格！`, "good");
-          changed = true;
-          break;
-        }
+
+        if (!pairRecipe) continue;
+
+        const combined = createRecipeItem(pairRecipe, [a, b]);
+        state.slots[indexA] = null;
+        state.slots[indexB] = combined;
+        playSound(hasTag(combined, "Premium") ? "premium" : "merge");
+        spawnSlotEffect(indexB, SPRITES.merge, "merge-burst");
+        spawnFloatingText(hasTag(combined, "Premium") ? "PREMIUM" : "COMBO", indexB, "good");
+        setConsumerMood("combo", hasTag(combined, "Premium") ? 1900 : 1700);
+        onComboCreated(1);
+        log(`连锁：${a.name}与${b.name}合体成${combined.name}，腾出了 1 个空格！`, "good");
+        changed = true;
+        break;
       }
     }
   }
