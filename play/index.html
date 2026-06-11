@@ -15,6 +15,7 @@
             <h1>Crazy Sushi</h1>
             <p id="phaseText">准备启动</p>
           </div>
+          <button id="tutorialBtn" class="tutorial-help-button" type="button" aria-label="查看新手引导">?</button>
         </div>
         <div class="stats core-stats">
           <div tabindex="0" data-tooltip="当前天数。每天营业成功后可以进入下一天，目标金币和鱼骨压力会逐步提高。">
@@ -123,27 +124,26 @@
           />
           <div id="belt" class="belt" aria-label="圆形传送带"></div>
           <div id="effectLayer" class="effect-layer" aria-hidden="true"></div>
-          <div id="resultOverlay" class="result-overlay hidden">
-            <div id="resultCard" class="result-card">
-              <div id="resultTitle" class="result-title">营业结束</div>
-              <div id="resultDetail" class="result-detail"></div>
-              <div id="rewardChoices" class="reward-choices"></div>
-              <button id="skipRewardBtn" class="skip-reward-button">跳过奖励</button>
-              <button id="resultNextDayBtn" class="result-next-day-button">新一天</button>
-              <button id="retryBtn" class="retry-button">重新开始</button>
-            </div>
-          </div>
         </div>
-          <div class="consumer">
-            <img
-              class="consumer-base"
-              src="../newasset/slot_customer_zone_2db68a34-507b-4478-8caf-138a52a84591.webp"
-              alt=""
-            />
-            <div class="consumer-ring"></div>
-            <img id="consumerPortrait" class="consumer-portrait" src="../assets/generated/consumer-happy.png" alt="大胃王" />
-            <div class="consumer-face" id="consumerFace">^_^</div>
-            <div class="consumer-label">大胃王</div>
+        <div class="consumer">
+          <img
+            class="consumer-base"
+            src="../newasset/slot_customer_zone_2db68a34-507b-4478-8caf-138a52a84591.webp"
+            alt=""
+          />
+          <div class="consumer-ring"></div>
+          <img id="consumerPortrait" class="consumer-portrait" src="../assets/generated/consumer-happy.png" alt="大胃王" />
+          <div class="consumer-face" id="consumerFace">^_^</div>
+          <div class="consumer-label">大胃王</div>
+        </div>
+        <div id="resultOverlay" class="result-overlay hidden">
+          <div id="resultCard" class="result-card">
+            <div id="resultTitle" class="result-title">营业结束</div>
+            <div id="resultDetail" class="result-detail"></div>
+            <div id="rewardChoices" class="reward-choices"></div>
+            <button id="skipRewardBtn" class="skip-reward-button">跳过奖励</button>
+            <button id="resultNextDayBtn" class="result-next-day-button">新一天</button>
+            <button id="retryBtn" class="retry-button">重新开始</button>
           </div>
         </div>
       </section>
@@ -161,7 +161,7 @@
           <div id="shopList" class="item-row"></div>
         </div>
 
-        <div class="panel">
+        <div id="inventoryPanel" class="panel inventory-panel">
           <div class="panel-head">
             <h2>备料区</h2>
             <button id="startDayBtn">新一天</button>
@@ -171,6 +171,7 @@
 
         <div class="panel action-panel">
           <button id="confirmBtn" class="primary">确认摆盘</button>
+          <button id="quickRetryBtn" class="quick-retry-button">重试</button>
         </div>
       </section>
 
@@ -179,6 +180,11 @@
         <div id="log" class="log"></div>
       </section>
       <div id="itemTooltip" class="item-tooltip hidden"></div>
+      <div id="tutorialCoach" class="tutorial-coach hidden" aria-live="polite">
+        <div id="tutorialCoachTitle" class="tutorial-coach-title">操作提示</div>
+        <div id="tutorialCoachText" class="tutorial-coach-text"></div>
+        <button id="tutorialDoneBtn" class="tutorial-done-button" type="button">我知道了</button>
+      </div>
     </main>
 
     <script src="./game.js"></script>

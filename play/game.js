@@ -39,6 +39,15 @@
     consumerAngry: "../assets/generated/consumer-angry.png",
   };
   const RELIC_ASSET = "../assets/generated/relics/";
+  const MASTER_VOLUME = 0.18;
+  const MUSIC_VOLUME = 0.055;
+  const TUTORIAL_STORAGE_KEY = "crazySushiActionTutorialSeen";
+  const DESIGN_WIDTH = 1600;
+  const DESIGN_HEIGHT = 1000;
+  let audioContext = null;
+  let musicTimer = null;
+  let musicStarted = false;
+  let musicStep = 0;
 
   const itemPool = [
     { id: "rice", name: "醋饭", tags: ["Raw"], score: 3, weight: 1, cost: 2, sprite: SPRITES.rice },
@@ -255,9 +264,9 @@
   const DAY_CONFIGS = {
     1: { ticks: 12, targetGold: 24, startingTrash: 0 },
     2: { ticks: 12, targetGold: 40, startingTrash: 0 },
-    3: { ticks: 12, targetGold: 60, startingTrash: 1 },
-    4: { ticks: 12, targetGold: 84, startingTrash: 2 },
-    5: { ticks: 12, targetGold: 112, startingTrash: 3 },
+    3: { ticks: 12, targetGold: 60, startingTrash: 0 },
+    4: { ticks: 12, targetGold: 84, startingTrash: 0 },
+    5: { ticks: 12, targetGold: 112, startingTrash: 0 },
   };
 
   const state = {
@@ -301,6 +310,7 @@
 
   const els = {
     belt: document.getElementById("belt"),
+    gameShell: document.querySelector(".game-shell"),
     stage: document.getElementById("stage"),
     dayText: document.getElementById("dayText"),
     goldText: document.getElementById("goldText"),
@@ -313,12 +323,14 @@
     phaseBannerSub: document.getElementById("phaseBannerSub"),
     consumerFace: document.getElementById("consumerFace"),
     consumerPortrait: document.getElementById("consumerPortrait"),
+    controls: document.querySelector(".controls"),
     shopPanel: document.getElementById("shopPanel"),
     shopList: document.getElementById("shopList"),
     inventoryList: document.getElementById("inventoryList"),
     refreshBtn: document.getElementById("refreshBtn"),
     startDayBtn: document.getElementById("startDayBtn"),
     confirmBtn: document.getElementById("confirmBtn"),
+    quickRetryBtn: document.getElementById("quickRetryBtn"),
     actionHint: document.getElementById("actionHint"),
     log: document.getElementById("log"),
     conveyorBase: document.getElementById("conveyorBase"),
@@ -331,6 +343,11 @@
     skipRewardBtn: document.getElementById("skipRewardBtn"),
     resultNextDayBtn: document.getElementById("resultNextDayBtn"),
     retryBtn: document.getElementById("retryBtn"),
+    tutorialCoach: document.getElementById("tutorialCoach"),
+    tutorialBtn: document.getElementById("tutorialBtn"),
+    tutorialCoachTitle: document.getElementById("tutorialCoachTitle"),
+    tutorialCoachText: document.getElementById("tutorialCoachText"),
+    tutorialDoneBtn: document.getElementById("tutorialDoneBtn"),
     relicList: document.getElementById("relicList"),
     itemTooltip: document.getElementById("itemTooltip"),
     comboGuide: document.querySelector(".combo-guide"),
@@ -339,6 +356,9 @@
   function cloneItem(template) {
     return { ...template, tags: [...template.tags], uid: `${template.id}_${state.nextId++}` };
   }
+
+  let tutorialActive = false;
+  let tutorialAutoCloseTimer = null;
 
   function hasTag(item, tag) {
     return item.tags.includes(tag);
@@ -354,6 +374,184 @@
 
   function isCrusher(item) {
     return item?.id === "crusher";
+  }
+
+  function getAudioContext() {
+    const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+    if (!AudioContextClass) return null;
+    if (!audioContext) audioContext = new AudioContextClass();
+    if (audioContext.state === "suspended") audioContext.resume().catch(() => {});
+    return audioContext;
+  }
+
+  function playTone(frequency, duration, type = "sine", gain = 0.35, delay = 0) {
+    const context = getAudioContext();
+    if (!context) return;
+
+    const start = context.currentTime + delay;
+    const oscillator = context.createOscillator();
+    const volume = context.createGain();
+    oscillator.type = type;
+    oscillator.frequency.setValueAtTime(frequency, start);
+    volume.gain.setValueAtTime(0.0001, start);
+    volume.gain.exponentialRampToValueAtTime(Math.max(0.0001, gain * MASTER_VOLUME), start + 0.012);
+    volume.gain.exponentialRampToValueAtTime(0.0001, start + duration);
+    oscillator.connect(volume);
+    volume.connect(context.destination);
+    oscillator.start(start);
+    oscillator.stop(start + duration + 0.02);
+  }
+
+  function playMusicTone(frequency, duration, delay = 0, gain = 1, type = "sine") {
+    const context = getAudioContext();
+    if (!context) return;
+
+    const start = context.currentTime + delay;
+    const oscillator = context.createOscillator();
+    const volume = context.createGain();
+    const filter = context.createBiquadFilter();
+    oscillator.type = type;
+    oscillator.frequency.setValueAtTime(frequency, start);
+    filter.type = "lowpass";
+    filter.frequency.setValueAtTime(1400, start);
+    volume.gain.setValueAtTime(0.0001, start);
+    volume.gain.exponentialRampToValueAtTime(Math.max(0.0001, gain * MUSIC_VOLUME), start + 0.08);
+    volume.gain.exponentialRampToValueAtTime(0.0001, start + duration);
+    oscillator.connect(filter);
+    filter.connect(volume);
+    volume.connect(context.destination);
+    oscillator.start(start);
+    oscillator.stop(start + duration + 0.04);
+  }
+
+  function startBackgroundMusic() {
+    if (musicStarted) return;
+    const context = getAudioContext();
+    if (!context) return;
+    musicStarted = true;
+    scheduleMusicLoop();
+  }
+
+  function scheduleMusicLoop() {
+    if (!musicStarted) return;
+
+    const melody = [
+      392, 440, 523.25, 587.33,
+      523.25, 440, 392, 329.63,
+      392, 493.88, 587.33, 659.25,
+      587.33, 523.25, 440, 392,
+    ];
+    const bass = [196, 196, 220, 220, 261.63, 261.63, 220, 220];
+    const stepDuration = 0.48;
+    const note = melody[musicStep % melody.length];
+    const barStep = musicStep % 4;
+
+    playMusicTone(note, barStep === 3 ? 0.72 : 0.42, 0, barStep === 0 ? 0.9 : 0.72, "triangle");
+    if (musicStep % 2 === 0) {
+      playMusicTone(bass[Math.floor(musicStep / 2) % bass.length], 0.86, 0, 0.42, "sine");
+    }
+
+    musicStep = (musicStep + 1) % melody.length;
+    musicTimer = window.setTimeout(scheduleMusicLoop, stepDuration * 1000);
+  }
+
+  function playNoise(duration, gain = 0.25, delay = 0, frequency = 900) {
+    const context = getAudioContext();
+    if (!context) return;
+
+    const sampleCount = Math.max(1, Math.floor(context.sampleRate * duration));
+    const buffer = context.createBuffer(1, sampleCount, context.sampleRate);
+    const data = buffer.getChannelData(0);
+    for (let i = 0; i < sampleCount; i += 1) {
+      data[i] = Math.random() * 2 - 1;
+    }
+
+    const start = context.currentTime + delay;
+    const source = context.createBufferSource();
+    const filter = context.createBiquadFilter();
+    const volume = context.createGain();
+    source.buffer = buffer;
+    filter.type = "bandpass";
+    filter.frequency.setValueAtTime(frequency, start);
+    filter.Q.setValueAtTime(0.8, start);
+    volume.gain.setValueAtTime(0.0001, start);
+    volume.gain.exponentialRampToValueAtTime(Math.max(0.0001, gain * MASTER_VOLUME), start + 0.01);
+    volume.gain.exponentialRampToValueAtTime(0.0001, start + duration);
+    source.connect(filter);
+    filter.connect(volume);
+    volume.connect(context.destination);
+    source.start(start);
+    source.stop(start + duration + 0.02);
+  }
+
+  function playSound(name) {
+    switch (name) {
+      case "buy":
+        playTone(660, 0.08, "triangle", 0.28);
+        playTone(990, 0.1, "triangle", 0.22, 0.055);
+        break;
+      case "place":
+        playTone(380, 0.09, "sine", 0.26);
+        playTone(520, 0.08, "sine", 0.2, 0.055);
+        break;
+      case "swap":
+        playTone(430, 0.06, "square", 0.14);
+        playTone(360, 0.06, "square", 0.12, 0.055);
+        break;
+      case "refresh":
+        playTone(520, 0.05, "triangle", 0.16);
+        playTone(700, 0.05, "triangle", 0.16, 0.04);
+        playTone(880, 0.07, "triangle", 0.14, 0.08);
+        break;
+      case "start":
+        playTone(300, 0.12, "sawtooth", 0.12);
+        playTone(450, 0.16, "sawtooth", 0.11, 0.08);
+        break;
+      case "tick":
+        playTone(210, 0.035, "triangle", 0.08);
+        break;
+      case "merge":
+        playTone(523, 0.08, "triangle", 0.22);
+        playTone(784, 0.1, "triangle", 0.2, 0.055);
+        playTone(1046, 0.14, "triangle", 0.16, 0.11);
+        break;
+      case "premium":
+        playTone(659, 0.09, "triangle", 0.22);
+        playTone(988, 0.11, "triangle", 0.21, 0.06);
+        playTone(1318, 0.18, "triangle", 0.18, 0.13);
+        break;
+      case "crush":
+        playNoise(0.16, 0.28, 0, 520);
+        playTone(150, 0.1, "sawtooth", 0.1, 0.04);
+        break;
+      case "feed":
+        playTone(720, 0.08, "sine", 0.2);
+        playTone(1080, 0.12, "sine", 0.16, 0.06);
+        break;
+      case "bad":
+        playTone(180, 0.16, "sawtooth", 0.22);
+        playNoise(0.18, 0.18, 0.03, 240);
+        break;
+      case "coin":
+        playTone(880, 0.06, "triangle", 0.2);
+        playTone(1320, 0.08, "triangle", 0.16, 0.05);
+        break;
+      case "success":
+        playTone(523, 0.1, "triangle", 0.2);
+        playTone(659, 0.1, "triangle", 0.2, 0.08);
+        playTone(784, 0.18, "triangle", 0.18, 0.16);
+        break;
+      case "fail":
+        playTone(330, 0.14, "sawtooth", 0.18);
+        playTone(247, 0.18, "sawtooth", 0.16, 0.12);
+        break;
+      case "error":
+        playTone(160, 0.09, "square", 0.16);
+        playTone(140, 0.11, "square", 0.14, 0.08);
+        break;
+      default:
+        break;
+    }
   }
 
   function wrapSlotIndex(index) {
@@ -449,19 +647,17 @@
   function previewRecipeForPlacement(item, slotIndex) {
     if (!item || state.slots[slotIndex]) return null;
 
-    const left = state.slots[slotIndex - 1] ?? null;
-    const right = state.slots[slotIndex + 1] ?? null;
-    const twoLeft = state.slots[slotIndex - 2] ?? null;
-    const twoRight = state.slots[slotIndex + 2] ?? null;
-    const circularLeft = state.slots[wrapSlotIndex(slotIndex - 1)] ?? null;
-    const circularRight = state.slots[wrapSlotIndex(slotIndex + 1)] ?? null;
+    const left = state.slots[wrapSlotIndex(slotIndex - 1)] ?? null;
+    const right = state.slots[wrapSlotIndex(slotIndex + 1)] ?? null;
+    const twoLeft = state.slots[wrapSlotIndex(slotIndex - 2)] ?? null;
+    const twoRight = state.slots[wrapSlotIndex(slotIndex + 2)] ?? null;
 
     return (
       findTripleRecipe(twoLeft, left, item) ||
       findTripleRecipe(left, item, right) ||
       findTripleRecipe(item, right, twoRight) ||
-      findEffectRecipe(circularLeft, item) ||
-      findEffectRecipe(item, circularRight) ||
+      findEffectRecipe(left, item) ||
+      findEffectRecipe(item, right) ||
       findPairRecipe(left, item) ||
       findPairRecipe(item, right)
     );
@@ -505,7 +701,7 @@
     return normalizeDayGoal({
       targetGold,
       ticks: DAY_CONFIGS[5].ticks,
-      startingTrash: Math.min(5, DAY_CONFIGS[5].startingTrash + Math.floor(growth / 2) + 1),
+      startingTrash: 0,
     });
   }
 
@@ -553,6 +749,133 @@
     state.lastDisplayedGold = state.gold;
   }
 
+  function updateGameScale() {
+    const viewport = window.visualViewport;
+    const width = viewport?.width ?? window.innerWidth;
+    const height = viewport?.height ?? window.innerHeight;
+    const scale = Math.min(width / DESIGN_WIDTH, height / DESIGN_HEIGHT);
+    document.documentElement.style.setProperty("--game-scale", String(Math.max(0.1, scale)));
+    renderTutorialCoach();
+  }
+
+  function showTutorial(force = false) {
+    if (!force && window.localStorage.getItem(TUTORIAL_STORAGE_KEY) === "1") return;
+    tutorialActive = true;
+    if (tutorialAutoCloseTimer) {
+      window.clearTimeout(tutorialAutoCloseTimer);
+      tutorialAutoCloseTimer = null;
+    }
+    renderTutorialCoach();
+  }
+
+  function closeTutorial() {
+    tutorialActive = false;
+    window.localStorage.setItem(TUTORIAL_STORAGE_KEY, "1");
+    clearTutorialTargets();
+    els.tutorialCoach.classList.add("hidden");
+  }
+
+  function clearTutorialTargets() {
+    document.querySelectorAll(".tutorial-target").forEach((element) => element.classList.remove("tutorial-target"));
+  }
+
+  function getTutorialCoachStep() {
+    if (state.phase === "Running") {
+      return {
+        selector: "#phaseBanner",
+        title: "营业开始了",
+        text: "现在不用操作，观察餐盘旋转、合成、粉碎和投喂。第一轮营业开始后，引导会自动结束。",
+        autoComplete: true,
+      };
+    }
+
+    if (state.phase === "Finished") {
+      if (state.lastResult?.advanced && !state.rewardResolved) {
+        return {
+          selector: "#rewardChoices",
+          title: "选择一个道具",
+          text: "过关后会二选一获得道具。道具会改变后续构筑方向。",
+        };
+      }
+
+      return {
+        selector: state.lastResult?.advanced ? "#resultNextDayBtn" : "#retryBtn",
+        title: state.lastResult?.advanced ? "进入下一天" : "重新开始",
+        text: state.lastResult?.advanced ? "点击新一天继续挑战更高目标。" : "这局失败了，点击重新开始再试一次。",
+      };
+    }
+
+    const filledSlots = state.slots.filter(Boolean).length;
+    if (filledSlots > 0) {
+      return {
+        selector: "#confirmBtn",
+        title: "确认摆盘",
+        text: "餐盘上已有物品。你可以继续调整顺序，或点击确认摆盘开始营业。",
+      };
+    }
+
+    if (state.inventory.length > 0) {
+      return {
+        selector: "#inventoryPanel",
+        title: "拖到餐盘",
+        text: "把备料区里的物品直接拖到左侧空餐盘上松手。相邻食材会在营业前自动合成 Combo。",
+      };
+    }
+
+    return {
+      selector: "#shopPanel",
+      title: "先买食材",
+      text: "点击商店里的食材购买。购买后会进入备料区，再拖到餐盘上。",
+    };
+  }
+
+  function renderTutorialCoach() {
+    clearTutorialTargets();
+    if (!tutorialActive) {
+      els.tutorialCoach.classList.add("hidden");
+      return;
+    }
+
+    const step = getTutorialCoachStep();
+    const target = document.querySelector(step.selector);
+    if (!target) {
+      els.tutorialCoach.classList.add("hidden");
+      return;
+    }
+
+    target.classList.add("tutorial-target");
+    els.tutorialCoachTitle.textContent = step.title;
+    els.tutorialCoachText.textContent = step.text;
+    els.tutorialCoach.classList.remove("hidden");
+    positionTutorialCoach(target);
+
+    if (step.autoComplete && !tutorialAutoCloseTimer) {
+      tutorialAutoCloseTimer = window.setTimeout(closeTutorial, 3200);
+    }
+  }
+
+  function positionTutorialCoach(target) {
+    const rect = target.getBoundingClientRect();
+    const shellRect = els.gameShell.getBoundingClientRect();
+    const coach = els.tutorialCoach;
+    const coachWidth = 270;
+    const coachHeight = 150;
+    const gap = 14;
+    const scale = shellRect.width / DESIGN_WIDTH || 1;
+    const targetLeft = (rect.left - shellRect.left) / scale;
+    const targetRight = (rect.right - shellRect.left) / scale;
+    const targetTop = (rect.top - shellRect.top) / scale;
+    const targetHeight = rect.height / scale;
+    const spaceRight = DESIGN_WIDTH - targetRight;
+    const left =
+      spaceRight >= coachWidth + gap
+        ? targetRight + gap
+        : Math.max(12, targetLeft - coachWidth - gap);
+    const top = Math.max(12, Math.min(DESIGN_HEIGHT - coachHeight - 12, targetTop + targetHeight * 0.2));
+    coach.style.left = `${left}px`;
+    coach.style.top = `${top}px`;
+  }
+
   function render() {
     if (els.itemTooltip && !els.itemTooltip.classList.contains("hidden")) {
       hideItemTooltip();
@@ -572,6 +895,7 @@
     renderShop();
     renderInventory();
     renderRelics();
+    updateControlPanelSizing();
 
     const canPrepare = state.phase === "Preparation";
     const hasAffordableShopItem = canPrepare && state.shop.some((item) => state.gold >= itemCost(item));
@@ -580,10 +904,23 @@
     els.refreshBtn.textContent = refreshCost > 0 ? `刷新 ${priceText(refreshCost)}` : "刷新 免费";
     els.refreshBtn.disabled = !canPrepare;
     els.confirmBtn.disabled = !canPrepare;
+    els.quickRetryBtn.disabled = state.phase === "Running";
     const canStartNextDay = state.phase === "Finished" && state.lastResult?.advanced && state.rewardResolved;
     els.startDayBtn.disabled = !canStartNextDay;
     els.startDayBtn.classList.toggle("next-day-prompt", canStartNextDay);
     updateActionHint();
+    renderTutorialCoach();
+  }
+
+  function updateControlPanelSizing() {
+    const minPanel = 190;
+    const shopWeight = Math.max(0.65, Math.min(4, state.shop.length || 0.65));
+    const inventoryWeight = Math.max(0.65, Math.min(6, state.inventory.length || 0.65));
+
+    els.controls.style.setProperty("--shop-row-min", `${minPanel}px`);
+    els.controls.style.setProperty("--inventory-row-min", `${minPanel}px`);
+    els.controls.style.setProperty("--shop-row-flex", `${shopWeight}fr`);
+    els.controls.style.setProperty("--inventory-row-flex", `${inventoryWeight}fr`);
   }
 
   function renderPhaseBanner() {
@@ -1325,7 +1662,7 @@
   }
 
   function restartGame() {
-    if (state.phase !== "Finished" || state.lastResult?.advanced) return;
+    if (state.phase === "Running") return;
 
     state.currentDay = 0;
     state.currentTick = 0;
@@ -1356,6 +1693,7 @@
     state.freeRefreshUsed = 0;
 
     log("重新开始游戏。回到第 1 天营业前准备。", "good");
+    playSound("start");
     startNewDay();
   }
 
@@ -1364,6 +1702,7 @@
     if (!isFree) {
       const cost = currentRefreshCost();
       if (state.gold < cost) {
+        playSound("error");
         spawnPointerFloatingText(event, `金币不足：需要 ${cost} 金币`, "bad");
         setHint(`金币不足，刷新需要 ${cost} 金币。`);
         log("金币不足，不能刷新。", "bad");
@@ -1377,6 +1716,7 @@
       }
     }
     state.shop = drawWeightedShop(3);
+    if (!isFree) playSound("refresh");
     log(`商店刷新：${state.shop.map((item) => item.name).join("、")}`);
     render();
   }
@@ -1387,6 +1727,7 @@
     if (!item) return;
     const cost = itemCost(item);
     if (state.gold < cost) {
+      playSound("error");
       spawnPointerFloatingText(event, `金币不足：差 ${cost - state.gold} 金币`, "bad");
       setHint(`金币不足，购买 ${item.name} 需要 ${cost} 金币。`);
       log(`金币不足，买不起 ${item.name}。`, "bad");
@@ -1395,6 +1736,7 @@
     state.gold -= cost;
     state.shop.splice(shopIndex, 1);
     state.inventory.push(cloneItem(item));
+    playSound("buy");
     setHint(`已购买 ${item.name}。现在可以把它从备料区拖到空餐盘。`);
     log(`购买 ${item.name}。`);
     render();
@@ -1433,6 +1775,7 @@
     if (!item) return false;
 
     if (state.slots[slotIndex]) {
+      playSound("error");
       log(`Slot[${slotIndex}] 已被占用。`, "bad");
       return false;
     }
@@ -1441,6 +1784,7 @@
     state.slots[slotIndex] = placedItem;
     state.selectedInventory = null;
     state.selectedSlot = null;
+    playSound("place");
     spawnSlotEffect(slotIndex, SPRITES.merge, "place-pop");
     setHint(`${placedItem.name} 已固定到 Slot[${slotIndex}]。继续摆盘或点击确认摆盘。`);
     log(`将 ${placedItem.name} 固定到 Slot[${slotIndex}]。`);
@@ -1452,6 +1796,7 @@
     const temp = state.slots[indexA];
     state.slots[indexA] = state.slots[indexB];
     state.slots[indexB] = temp;
+    playSound("swap");
     setHint(`已交换 Slot[${indexA}] 和 Slot[${indexB}]。相邻顺序会影响合成/粉碎。`);
     log(`交换 Slot[${indexA}] 与 Slot[${indexB}]。`);
   }
@@ -1464,6 +1809,7 @@
     state.totalTicks = goal.ticks;
     state.goldAtBusinessStart = state.gold;
     state.dailyComboCount = 0;
+    playSound("start");
     setHint(`营业开始：传送带自动转动，等待 ${goal.ticks} 轮结算。`);
     log(`开始营业：自动运行 ${goal.ticks} 轮。`, "good");
     hideItemTooltip();
@@ -1497,6 +1843,7 @@
 
   function rotateBelt() {
     hideItemTooltip();
+    playSound("tick");
     pulseBelt();
     const last = state.slots[SLOT_COUNT - 1];
     const lastPlateMultiplier = state.plateMultipliers[SLOT_COUNT - 1];
@@ -1546,6 +1893,8 @@
 
         const totalCrushGold = trashSlots.length * crushGold;
         state.gold += totalCrushGold;
+        playSound("crush");
+        playSound("coin");
         spawnGoldRewardText(totalCrushGold, i, trashSlots.length > 1 ? `粉碎 x${trashSlots.length}` : "粉碎");
         setOverload(state.overload - crushRelief * trashSlots.length);
         log(
@@ -1558,19 +1907,23 @@
 
       if (changed) continue;
 
-      for (let i = 0; i < SLOT_COUNT - 1; i += 1) {
-        const a = state.slots[i];
-        const b = state.slots[i + 1];
-        const c = state.slots[i + 2];
-        const tripleRecipe = i < SLOT_COUNT - 2 ? findTripleRecipe(a, b, c) : null;
+      for (let i = 0; i < SLOT_COUNT; i += 1) {
+        const indexA = i;
+        const indexB = wrapSlotIndex(i + 1);
+        const indexC = wrapSlotIndex(i + 2);
+        const a = state.slots[indexA];
+        const b = state.slots[indexB];
+        const c = state.slots[indexC];
+        const tripleRecipe = findTripleRecipe(a, b, c);
 
         if (tripleRecipe) {
           const combined = createRecipeItem(tripleRecipe, [a, b, c]);
-          state.slots[i] = combined;
-          state.slots[i + 1] = null;
-          state.slots[i + 2] = null;
-          spawnSlotEffect(i, SPRITES.merge, "merge-burst");
-          spawnFloatingText("PREMIUM", i, "good");
+          state.slots[indexA] = null;
+          state.slots[indexB] = null;
+          state.slots[indexC] = combined;
+          playSound("premium");
+          spawnSlotEffect(indexC, SPRITES.merge, "merge-burst");
+          spawnFloatingText("PREMIUM", indexC, "good");
           setConsumerMood("combo", 1900);
           onComboCreated(2);
           log(`连锁：${a.name}、${b.name}、${c.name}合体成${combined.name}，腾出了 2 个空格！`, "good");
@@ -1581,10 +1934,11 @@
         const pairRecipe = findPairRecipe(a, b);
         if (pairRecipe) {
           const combined = createRecipeItem(pairRecipe, [a, b]);
-          state.slots[i] = combined;
-          state.slots[i + 1] = null;
-          spawnSlotEffect(i, SPRITES.merge, "merge-burst");
-          spawnFloatingText(hasTag(combined, "Premium") ? "PREMIUM" : "COMBO", i, "good");
+          state.slots[indexA] = null;
+          state.slots[indexB] = combined;
+          playSound(hasTag(combined, "Premium") ? "premium" : "merge");
+          spawnSlotEffect(indexB, SPRITES.merge, "merge-burst");
+          spawnFloatingText(hasTag(combined, "Premium") ? "PREMIUM" : "COMBO", indexB, "good");
           setConsumerMood("combo", hasTag(combined, "Premium") ? 1900 : 1700);
           onComboCreated(1);
           log(`连锁：${a.name}与${b.name}合体成${combined.name}，腾出了 1 个空格！`, "good");
@@ -1626,6 +1980,7 @@
     if (!item) return;
 
     if (isTrash(item)) {
+      playSound("bad");
       spawnFeedAnimation(item, "bad");
       state.slots[0] = null;
       state.saturation = Math.max(0, state.saturation - 20);
@@ -1648,6 +2003,8 @@
         state.penaltyTicks -= 1;
       }
       state.gold += earned;
+      playSound(hasTag(item, "Combo") ? "premium" : "feed");
+      playSound("coin");
       state.saturation = Math.min(100, state.saturation + 12);
       const relief = hasTag(item, "Premium")
         ? OVERLOAD_BALANCE.premiumRelief
@@ -1672,7 +2029,8 @@
   }
 
   function injectTrashForPreparation(day) {
-    const count = dayGoal(day).startingTrash + relicCount("bone_growth");
+    const baseCount = day > 5 ? 2 + Math.floor(Math.random() * 4) : 0;
+    const count = Math.min(5, baseCount + relicCount("bone_growth"));
     const injectedSlots = [];
     for (let i = 0; i < count; i += 1) {
       const slotIndex = injectTrash();
@@ -1792,19 +2150,19 @@
 
   function pointFromSlot(slotIndex) {
     const pos = slotPosition(slotIndex);
-    const rect = els.effectLayer.getBoundingClientRect();
     return {
-      x: (pos.x / 100) * rect.width,
-      y: (pos.y / 100) * rect.height,
+      x: (pos.x / 100) * els.effectLayer.clientWidth,
+      y: (pos.y / 100) * els.effectLayer.clientHeight,
     };
   }
 
   function consumerPointInEffectLayer() {
     const layerRect = els.effectLayer.getBoundingClientRect();
     const consumerRect = els.consumerPortrait.getBoundingClientRect();
+    const scale = layerRect.width / els.effectLayer.clientWidth || 1;
     return {
-      x: consumerRect.left + consumerRect.width / 2 - layerRect.left,
-      y: consumerRect.top + consumerRect.height * 0.58 - layerRect.top,
+      x: (consumerRect.left + consumerRect.width / 2 - layerRect.left) / scale,
+      y: (consumerRect.top + consumerRect.height * 0.58 - layerRect.top) / scale,
     };
   }
 
@@ -1889,6 +2247,7 @@
     state.lastResult = { advanced, produced, piggyRescue: state.lastPiggyRescue ?? 0, failureReason };
     log(`营业总结：当前金币 ${state.gold}/${state.targetGold}，本日 +${produced}，过载 ${state.overload.toFixed(1)}%。`);
     if (advanced) {
+      playSound("success");
       depositPiggyBank();
       state.pendingRewardChoices = drawRelicChoices(2);
       state.rewardResolved = state.pendingRewardChoices.length === 0;
@@ -1897,6 +2256,7 @@
         "good"
       );
     } else {
+      playSound("fail");
       state.pendingRewardChoices = [];
       state.rewardResolved = true;
       log(`餐厅倒闭：${failureReason}。最终坚持到第 ${state.currentDay} 天。`, "bad");
@@ -1969,6 +2329,7 @@
     state.playerRelics.push(relic);
     state.pendingRewardChoices = [];
     state.rewardResolved = true;
+    playSound("premium");
     const count = relicCount(relic.id);
     log(`获得道具：${relic.name}${count > 1 ? ` x${count}` : ""}。${relic.description}`, "good");
     setHint(`获得道具：${relic.name}${count > 1 ? ` x${count}` : ""}。现在可以点击“新一天”。`);
@@ -1988,6 +2349,7 @@
         return;
       }
       consumeRelic(relicId);
+      playSound("crush");
       setHint(`清洁券清除了 ${cleared} 个鱼骨。`);
       log(`使用清洁券：清除 ${cleared} 个鱼骨。`, "good");
       render();
@@ -2023,6 +2385,7 @@
       state.plateMultipliers[slotIndex] = 2;
       state.activeRelicId = null;
       consumeRelic(relicId);
+      playSound("premium");
       spawnSlotEffect(slotIndex, SPRITES.goldenPlate, "place-pop");
       setHint(`Slot[${slotIndex}] 已升级为金色餐盘：上面的食物投喂金币 x2。`);
       log(`使用金色餐盘券：Slot[${slotIndex}] 升级为金色餐盘。`, "good");
@@ -2040,6 +2403,7 @@
     state.slots[slotIndex] = null;
     state.activeRelicId = null;
     consumeRelic(relicId);
+    playSound("crush");
     spawnSlotEffect(slotIndex, SPRITES.smoke, "smoke-pop");
     setHint(`镊子移除了 Slot[${slotIndex}] 的鱼骨。`);
     log(`使用镊子：移除 Slot[${slotIndex}] 的 ${item.name}。`, "good");
@@ -2070,17 +2434,32 @@
     if (state.phase !== "Finished" || !state.lastResult?.advanced || state.rewardResolved) return;
     state.pendingRewardChoices = [];
     state.rewardResolved = true;
+    playSound("place");
     log("跳过本次道具奖励。");
     setHint("已跳过奖励。现在可以点击“新一天”。");
     render();
   }
 
   els.refreshBtn.addEventListener("click", (event) => refreshShop(false, event));
-  els.startDayBtn.addEventListener("click", startNewDay);
+  els.startDayBtn.addEventListener("click", () => {
+    playSound("start");
+    startNewDay();
+  });
   els.confirmBtn.addEventListener("click", confirmLayout);
-  els.resultNextDayBtn.addEventListener("click", startNewDay);
+  els.quickRetryBtn.addEventListener("click", restartGame);
+  els.resultNextDayBtn.addEventListener("click", () => {
+    playSound("start");
+    startNewDay();
+  });
   els.retryBtn.addEventListener("click", restartGame);
   els.skipRewardBtn.addEventListener("click", skipRelicReward);
+  els.tutorialBtn.addEventListener("click", () => showTutorial(true));
+  els.tutorialDoneBtn.addEventListener("click", () => {
+    playSound("place");
+    closeTutorial();
+  });
+  window.addEventListener("resize", updateGameScale);
+  window.visualViewport?.addEventListener("resize", updateGameScale);
   els.comboGuide.addEventListener("mouseover", (event) => {
     const line = event.target.closest(".combo-line[data-tooltip-title]");
     if (!line || !els.comboGuide.contains(line)) return;
@@ -2102,6 +2481,10 @@
     showItemTooltip(comboTooltipHtml(line), event);
   });
   els.comboGuide.addEventListener("focusout", hideItemTooltip);
+  document.addEventListener("pointerdown", startBackgroundMusic, { once: true });
+  document.addEventListener("keydown", startBackgroundMusic, { once: true });
 
+  updateGameScale();
   startNewDay();
+  showTutorial();
 })();
